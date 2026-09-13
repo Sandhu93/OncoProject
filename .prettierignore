@@ -1,0 +1,10 @@
+node_modules
+dist
+.cache
+coverage
+package-lock.json
+docs/archive/initial-planning/0*.md
+docs/planning/project-assessment.md
+database/**/*.sql
+playwright-report
+test-results

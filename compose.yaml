@@ -1,0 +1,59 @@
+name: oncotrack
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Run npm run env:init}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run env:init}
+      POSTGRES_DB: ${POSTGRES_DB:-oncotrack_dev}
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  db-test:
+    image: postgres:17-alpine
+    profiles: [test]
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?Run npm run env:init}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run npm run env:init}
+      POSTGRES_DB: oncotrack_test
+    ports:
+      - '127.0.0.1:5433:5432'
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U $$POSTGRES_USER -d oncotrack_test']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+  api:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: infra/api.Dockerfile
+    environment:
+      API_HOST: 0.0.0.0
+      API_PORT: 3000
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-oncotrack_dev}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - '127.0.0.1:3000:3000'
+  web:
+    profiles: [app]
+    build:
+      context: .
+      dockerfile: infra/web.Dockerfile
+    depends_on: [api]
+    ports:
+      - '127.0.0.1:8080:80'
+
+volumes:
+  postgres-data:

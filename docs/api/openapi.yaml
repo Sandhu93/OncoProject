@@ -1,0 +1,60 @@
+openapi: 3.1.0
+info:
+  title: OncoTrack foundation API
+  version: 0.1.0
+  description: >-
+    Implemented foundation routes only. No staff login, patient, chart or workflow mutation
+    API is exposed yet. New non-public routes are denied by the initial global guard.
+servers:
+  - url: http://localhost:3000/api/v1
+paths:
+  /health/live:
+    get:
+      operationId: getLiveness
+      summary: Process is available
+      security: []
+      responses:
+        '200':
+          description: API process is running; no database dependency
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Healthy'
+  /health/ready:
+    get:
+      operationId: getReadiness
+      summary: Database and initial migration are available
+      security: []
+      responses:
+        '200':
+          description: Initial schema is present
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Healthy'
+        '503':
+          description: Database is unavailable, unconfigured or unmigrated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Unavailable'
+components:
+  schemas:
+    Healthy:
+      type: object
+      additionalProperties: false
+      required: [status, service]
+      properties:
+        status:
+          const: ok
+        service:
+          const: oncotrack-api
+    Unavailable:
+      type: object
+      additionalProperties: false
+      required: [status, service]
+      properties:
+        status:
+          const: unavailable
+        service:
+          const: oncotrack-api

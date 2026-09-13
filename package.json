@@ -1,0 +1,57 @@
+{
+  "name": "oncotrack",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.14.0 <23 || >=24.0.0",
+    "npm": ">=10"
+  },
+  "workspaces": [
+    "apps/api",
+    "apps/web",
+    "packages/contracts"
+  ],
+  "scripts": {
+    "env:init": "node scripts/init-env.mjs",
+    "dev": "npm run build -w @oncotrack/contracts && concurrently -k -n api,web \"npm run dev -w @oncotrack/api\" \"npm run dev -w @oncotrack/web\"",
+    "build": "npm run build -w @oncotrack/contracts && npm run build -w @oncotrack/api && npm run build -w @oncotrack/web",
+    "typecheck": "npm run build -w @oncotrack/contracts && npm run typecheck --workspaces --if-present && tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "npm run build -w @oncotrack/contracts && vitest run",
+    "test:watch": "vitest",
+    "test:db": "node --env-file-if-exists=.env --test tests/database/postgres.test.mjs",
+    "test:db:embedded": "node --test tests/database/embedded.test.mjs",
+    "test:e2e": "playwright test",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run test:db:embedded && npm run build",
+    "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
+    "db:seed": "node --env-file-if-exists=.env scripts/seed.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "@eslint/js": "10.0.1",
+    "@nestjs/testing": "12.0.1",
+    "@playwright/test": "1.63.0",
+    "@types/node": "^22.0.0",
+    "@types/pg": "^8.15.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/supertest": "^6.0.0",
+    "concurrently": "^9.0.0",
+    "eslint": "10.10.0",
+    "globals": "^17.0.0",
+    "prettier": "^3.0.0",
+    "supertest": "^7.0.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.70.0",
+    "vitest": "5.0.0"
+  },
+  "dependencies": {
+    "pg": "8.23.0"
+  },
+  "overrides": {
+    "multer": "2.3.0"
+  }
+}
