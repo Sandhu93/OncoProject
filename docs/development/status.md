@@ -11,6 +11,7 @@ Initial foundation created 13 September 2026. This is a starter workspace, not t
 - Environment generation, checksummed migration runner, local Compose and container build recipes.
 - Policy/API tests, embedded and real PostgreSQL schema suites, browser smoke tests and CI definition.
 - Architecture, database, API, setup, testing, operations and first-slice backlog documentation.
+- A reviewable starter task for additional database integrity tests, with reproducible disposable database setup.
 
 ## Still to implement
 
@@ -38,6 +39,8 @@ The first browser run needed cleanup permission for its Windows test-server proc
 The local container preview is available at `http://localhost:8080` while its services are running. Use `docker compose --profile app stop api web` before switching to host hot reload with `npm run dev`. Database data remains in the development volume; the test database is disposable.
 
 These results verify the foundation only. Authentication, clinical workflow correctness, application-level concurrent commands, mobile delivery and production recovery have not been implemented or validated.
+
+The database definition is shareable through Git. Local PostgreSQL data is held in Docker volumes and is intentionally not committed. A developer should create a fresh disposable test database by following [the database task setup](tasks/database-integrity-tests.md), rather than receiving a copied data directory or dump.
 
 ## Repository organization
 

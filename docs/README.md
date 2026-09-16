@@ -11,15 +11,16 @@ Current product and engineering guidance lives here. The original planning input
 
 ## Current references
 
-| Area         | Documents                                                                                                                                                                                       |
-| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Product      | [RT scope](product/rt-scope.md), [workflow contract](product/workflow.md)                                                                                                                       |
-| Architecture | [System overview and decisions](architecture/overview.md), [database design](architecture/database.md)                                                                                          |
-| API          | [Implemented OpenAPI contract](api/openapi.yaml)                                                                                                                                                |
-| Development  | [Start guide](development/getting-started.md), [local setup](development/local-setup.md), [testing](development/testing.md), [backlog](development/backlog.md), [status](development/status.md) |
-| Operations   | [Runbook and deployment prerequisites](operations/runbook.md)                                                                                                                                   |
-| Planning     | [Pre-development assessment and delivery plan](planning/project-assessment.md)                                                                                                                  |
-| History      | [Original planning archive](archive/initial-planning/README.md)                                                                                                                                 |
+| Area          | Documents                                                                                                                                                                                       |
+| ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Product       | [RT scope](product/rt-scope.md), [workflow contract](product/workflow.md)                                                                                                                       |
+| Architecture  | [System overview and decisions](architecture/overview.md), [database design](architecture/database.md)                                                                                          |
+| API           | [Implemented OpenAPI contract](api/openapi.yaml)                                                                                                                                                |
+| Development   | [Start guide](development/getting-started.md), [local setup](development/local-setup.md), [testing](development/testing.md), [backlog](development/backlog.md), [status](development/status.md) |
+| Starter tasks | [Database integrity tests](development/tasks/database-integrity-tests.md)                                                                                                                       |
+| Operations    | [Runbook and deployment prerequisites](operations/runbook.md)                                                                                                                                   |
+| Planning      | [Pre-development assessment and delivery plan](planning/project-assessment.md)                                                                                                                  |
+| History       | [Original planning archive](archive/initial-planning/README.md)                                                                                                                                 |
 
 ## Where new files belong
 

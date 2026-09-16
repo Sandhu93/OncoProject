@@ -21,3 +21,7 @@ State definitions: Backlog → Ready → In progress → Review → Testing → 
 | RELEASE-01 | Lead + team     | Performance, restore rehearsal, training and pilot                  | All required workflows implemented                   |
 
 The foundation files are complete only as recorded in `status.md`. These tickets describe future application work; they are not represented as finished by the scaffold.
+
+## Ready starter task
+
+[Database integrity tests](tasks/database-integrity-tests.md) is intentionally independent of the unfinished clinical workflow. It uses the existing migration and disposable test database, teaches PostgreSQL constraints and test isolation, and has a small reviewable scope. Do not ask the assignee to invent RT stages or change `001_initial.sql`.
