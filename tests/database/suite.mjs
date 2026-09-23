@@ -184,5 +184,28 @@ export function registerSchemaTests(name, createDatabase) {
         );
       });
     });
+    it('DB-010 refuses duplicate usernames', async () => {
+  await fixture(async (client, { staff }) => {
+    const duplicateStaff = randomUUID();
+    await assert.rejects(
+      client.query(
+        "INSERT INTO staff_users(id, username, full_name, identity_provider, external_subject) VALUES ($1::uuid, $2::text, 'Another synthetic test staff', 'DIRECTORY', $1::text)",
+        [duplicateStaff, staff],
+      ),
+      { code: '23505' },
+    );
+  });
+});
+it('DB-011 refuses a chart starting at a non-initial stage', async () => {
+  await fixture(async (client, { patient, staff, workflow }) => {
+    await assert.rejects(
+      client.query(
+        "INSERT INTO rt_charts(patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1,$2,$3,'REVIEW',$4,$4)",
+        [patient, randomUUID(), workflow, staff],
+      ),
+      { code: '55000' },
+    );
+  });
+});
   });
 }
