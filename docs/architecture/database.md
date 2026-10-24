@@ -1,6 +1,6 @@
 # Database design and migrations
 
-The executable source of truth is [001_initial.sql](../../database/migrations/001_initial.sql). Target server: PostgreSQL 17 with `btree_gist`. The older numbered schema is historical chemo planning and must not be executed.
+The executable source of truth is the numbered files in [database/migrations](../../database/migrations/): [001_initial.sql](../../database/migrations/001_initial.sql) and [002_numbering_throttle_weekly_updates.sql](../../database/migrations/002_numbering_throttle_weekly_updates.sql). Target server: PostgreSQL 17 with `btree_gist`. The older numbered schema is historical chemo planning and must not be executed.
 
 ## Relationships
 
@@ -21,6 +21,7 @@ erDiagram
   RT_CHARTS ||--o{ STALL_EPISODES : flags
   RT_CHARTS ||--o{ CALL_LOGS : contacts
   RT_CHARTS ||--o{ AUDIT_EVENTS : audits
+  RT_CHARTS ||--o{ TREATMENT_STATUS_UPDATES : updates
   OUTBOX_EVENTS ||--o{ NOTIFICATIONS : delivers
 ```
 
@@ -28,13 +29,20 @@ erDiagram
 
 - Unique chart display number, username and optional hospital patient number.
 - A new chart requires an active approved workflow and starts at that workflow's initial stage.
-- The chart's workflow version cannot be changed in place; approved definitions cannot be edited through normal DML. Retirement/migration of live charts needs a designed follow-up change.
+- The chart's workflow version cannot be changed in place; approved definitions cannot be edited through normal DML. An ACTIVE version can only be retired (migration 002); a retired version is final, rejects new charts, and charts already on it keep running on it. Moving live charts to a newer version still needs a designed follow-up change.
 - Composite foreign keys prevent mixing stages from different workflows or decisions from different charts.
 - One active owner for a chart/task, one open stall per chart and one notification per recipient/event.
 - A submission has a kind and revision; decisions reference that exact submission and require a reason for rejection.
 - Positive thresholds, valid appointment intervals and basic identity-provider consistency checks.
 - Resource unit bookings use half-open time ranges `[start, end)`. Reserved/confirmed bookings cannot overlap on one unit; adjacent bookings can share the end/start instant. Capacity is represented by independently bookable units.
 - History, audit, review submissions and review decisions reject UPDATE, DELETE and TRUNCATE. A database owner can disable triggers; this is not a guarantee against privileged administrators.
+
+## Added in migration 002
+
+- **RT numbering.** `allocate_number(scope)` returns the next number for a scope such as `RT:2026`, inside the caller's transaction. A rolled-back request gives its number back, so committed numbers have no gaps or duplicates. The display format (prefix, year, padding) is a department decision and is built by the API from this number.
+- **Login throttling.** `login_throttle` and `record_failed_login(name, max_failures, window, lock)` count failures per normalized (trimmed, lower-case) username and return the time the name is locked until, or null. The API checks `locked_until` before verifying a password and deletes the row after a successful login. Limits are parameters, not constants.
+- **One ACTIVE version per workflow code**, enforced by a partial unique index, plus the retirement rule above.
+- **Treatment updates.** `workflow_stages.requires_weekly_update` and `weekly_update_roles` say which stages need weekly updates and from which roles (workflow data, frozen on publication). `treatment_status_updates` stores the treatment start, one WEEKLY update per role per Saturday (`week_ending` must be a Saturday) and the completion; it is append-only. `weekly_updates_due(as_of)` lists missing updates for the most recent Saturday on the Asia/Kolkata calendar for open charts in such a stage. Older missed Saturdays, holidays, grace periods and the correction flow are open decision D-11.
 
 ## Application rules still required
 
@@ -56,4 +64,4 @@ The Compose database owner is for disposable local development. Before deploymen
 
 `npm run test:db:embedded` executes the migration and constraint suite in an in-memory PostgreSQL-derived runtime. `npm run test:db` runs the same suite on a dedicated PostgreSQL server. Every fixture rolls back; no test points at `DATABASE_URL`. A `_test` suffix is required for the external test database.
 
-The current suite checks schema/constraint behavior, not simultaneous independent transactions. Add real two-session booking, idempotency and stale-update tests when the corresponding commands are built. Full PostgreSQL behavior, backup/restore and load checks remain separate deployment gates.
+The suite (DB-001 to DB-016) checks schema/constraint behavior, not simultaneous independent transactions. For example, DB-010 shows that rolled-back numbers are reused, but not that two sessions allocating at the same moment get different numbers. Add real two-session booking, idempotency and stale-update tests when the corresponding commands are built. Full PostgreSQL behavior, backup/restore and load checks remain separate deployment gates.

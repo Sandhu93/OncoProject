@@ -15,3 +15,36 @@ backups/
 infra/certs/
 .DS_Store
 Thumbs.db
+
+# Secrets, certificates and signing material (never commit; keep in the hospital's secret store)
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+*.tfvars
+.npmrc.local
+
+# Database data, dumps and backups (may contain patient-linked records)
+*.sql.gz
+*.sql.zip
+*.sqlite
+*.sqlite3
+pgdata/
+postgres-data/
+db-data/
+uploads/
+exports/
+
+# Local editor, tool and OS files
+.idea/
+.vscode/*
+!.vscode/extensions.json
+.claude/settings.local.json
+*.tsbuildinfo
+*.swp

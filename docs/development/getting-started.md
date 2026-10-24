@@ -22,7 +22,7 @@ Use [the decision register](../product/rt-scope.md). Technical foundation work c
 
 Follow [local setup](local-setup.md). Install from the lockfile, generate a local environment with random database credentials, start PostgreSQL, apply the migrations, and load the draft reference fixture. Run `npm run check` and the database suite.
 
-Use the [project repository](https://github.com/Sandhu93/OncoProject) for source and review. Branch protection requiring CI and review is a follow-up repository administration task. Keep environment files, patient data and generated artifacts outside version control.
+Use the [project repository](https://github.com/Sandhu93/OncoProject) for source and review. Branch protection requiring CI and review is a repository administration task; the steps are in [repository settings](repository-settings.md). Keep environment files, patient data and generated artifacts outside version control.
 
 ## 3. Implement identity first
 

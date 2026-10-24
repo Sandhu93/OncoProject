@@ -13,6 +13,18 @@ Initial foundation created 13 September 2026. This is a starter workspace, not t
 - Architecture, database, API, setup, testing, operations and first-slice backlog documentation.
 - A reviewable starter task for additional database integrity tests, with reproducible disposable database setup.
 
+## Update, 24 October 2026
+
+Work since the foundation (uncommitted until reviewed):
+
+- Migration `002_numbering_throttle_weekly_updates.sql`: RT number allocation, login throttling, workflow retirement with one ACTIVE version per code, weekly-update stage rules, treatment start/weekly/completion records and a Saturday due list. Tests DB-010 to DB-016 cover it.
+- API readiness now requires every migration, guarded by test MIG-001.
+- The consultant's 13 steps are written up as an [unconfirmed workflow proposal](../product/rt-workflow-proposal.md) with a [confirmation sheet](../product/consultant-confirmation-sheet.md) for the meeting. Decisions D-01, D-06 and D-11 are tracked in [RT scope](../product/rt-scope.md).
+- New guides: [code walkthrough](code-walkthrough.md), [repository settings](repository-settings.md) and the [re-baselined schedule](../planning/schedule.md).
+- The starter task's idempotency item was corrected; payload-change detection belongs to the API, not SQL.
+
+Verification in a Linux sandbox: embedded database suite 18 of 18 passed; ESLint and Prettier clean. Vitest, type checking, Docker, the real PostgreSQL suite and browser tests could not run there (Windows-installed dependencies) and must be run on the development PC with `npm run check`.
+
 ## Still to implement
 
 Authentication and account provisioning; patient/chart commands; approved clinical workflow; persistence/idempotency transaction service; full role dashboards; scheduling readiness and overrides; outbox/stall workers; reports; native mobile apps; production TLS/storage/least-privilege provisioning; backups and recovery automation.

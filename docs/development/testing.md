@@ -2,12 +2,13 @@
 
 ## Implemented foundation checks
 
-| ID          | Behavior                                                                                                                                                  | Location                        |
-| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
-| WF-001      | Permitted transition, draft/retired rejection, role/assignment, stale version, prerequisites and required reason                                          | `tests/unit/workflow.test.ts`   |
-| API-001     | Liveness/readiness response and private routes denied despite forged headers                                                                              | `tests/integration/api.test.ts` |
-| DB-001–009  | Migration repeatability, draft gate, ID uniqueness, overlap/adjacency, audit immutability, definition freeze, thresholds and cross-chart review integrity | `tests/database/suite.mjs`      |
-| WEB-001–002 | Truthful availability/recovery and small-screen layout                                                                                                    | `tests/e2e/shell.spec.ts`       |
+| ID          | Behavior                                                                                                                                                                                                                                                                                                                   | Location                        |
+| ----------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------- |
+| WF-001      | Permitted transition, draft/retired rejection, role/assignment, stale version, prerequisites and required reason                                                                                                                                                                                                           | `tests/unit/workflow.test.ts`   |
+| API-001     | Liveness/readiness response and private routes denied despite forged headers                                                                                                                                                                                                                                               | `tests/integration/api.test.ts` |
+| DB-001–016  | Migration repeatability (all files), draft gate, ID uniqueness, overlap/adjacency, audit immutability, definition freeze, thresholds, cross-chart review integrity, RT number allocation, login throttling, single active workflow and retirement, treatment-update shape, weekly-update stage rules and Saturday due list | `tests/database/suite.mjs`      |
+| MIG-001     | API readiness list names every migration file                                                                                                                                                                                                                                                                              | `tests/unit/migrations.test.ts` |
+| WEB-001–002 | Truthful availability/recovery and small-screen layout                                                                                                                                                                                                                                                                     | `tests/e2e/shell.spec.ts`       |
 
 `npm test` runs policy and API tests. The API tests replace only the database health provider; they do not assert real database connectivity. `npm run test:db:embedded` executes the SQL locally in PGlite. `npm run test:db` exercises the same SQL suite on PostgreSQL. `npm run test:e2e` checks the browser shell with controlled service responses.
 
@@ -16,7 +17,7 @@ The root `check` command composes fast quality checks plus embedded SQL and buil
 ## Tests to add with the first staff feature
 
 1. AUTH-001: valid login, invalid credentials, expiry, revocation, inactive account and throttling.
-2. RT-01: unique registration numbers under simultaneous requests and correct multiple-chart identity.
+2. RT-01: unique registration numbers under simultaneous requests (two real sessions calling `allocate_number`) and correct multiple-chart identity.
 3. RT-02: assigned actor advances once, correct review queue receives the chart and actor-role history persists.
 4. RT-02-CONFLICT: stale request rejected; repeated request has one effect; same key with changed payload rejected.
 5. RT-02-REVIEW: rejection returns to the approved owner and invalidates only the defined dependent approvals.

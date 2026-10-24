@@ -2,6 +2,8 @@
 
 Status: clinical RT workflow unconfirmed. The repository does not contain an approved 13-stage list.
 
+A proposal drafted from the consultant's own description is in [the proposed RT workflow](rt-workflow-proposal.md). It is awaiting confirmation and must not be activated or seeded until the consultant approves it.
+
 ## Required definition
 
 For every stage/action, collect: stage code/label, owner role, action name, next stage, prerequisite facts, assignment requirement, rejection reason requirement, rejection return target and escalation threshold. Decide branch/skip rules explicitly. Store stable codes, not human-readable labels, in references.
