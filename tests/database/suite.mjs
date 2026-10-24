@@ -81,6 +81,15 @@ export function registerSchemaTests(name, createDatabase) {
       return workflow;
     }
 
+    async function addStaff(client) {
+      const id = randomUUID();
+      await client.query(
+        "INSERT INTO staff_users(id, username, full_name, identity_provider, external_subject) VALUES ($1::uuid, $1::text, 'Another synthetic test staff', 'DIRECTORY', $1::text)",
+        [id],
+      );
+      return id;
+    }
+
     it('DB-001 applies every migration idempotently with checksums', async () => {
       await migrate(pool);
       const files = (await readdir(new URL('../../database/migrations/', import.meta.url)))
@@ -467,6 +476,225 @@ export function registerSchemaTests(name, createDatabase) {
             [patient, randomUUID(), workflow, staff],
           ),
           { code: '55000' },
+        );
+      });
+    });
+
+    it('DB-019 freezes a workflow definition once published but allows edits while draft', async () => {
+      await fixture(async (client, { staff }) => {
+        const workflow = await addDraftWorkflow(
+          client,
+          "INSERT INTO workflow_stages(workflow_id, code, label, display_order, is_initial) VALUES ($1, 'START', 'Start', 0, true), ($1, 'REVIEW', 'Review', 1, false)",
+        );
+        await client.query(
+          "INSERT INTO workflow_transitions(workflow_id, from_stage, action, to_stage, role_code) VALUES ($1, 'START', 'SUBMIT', 'REVIEW', 'CONSULTANT')",
+          [workflow],
+        );
+        // Draft definitions stay editable, so the refusals below come from publication, not from a blanket block.
+        await client.query(
+          'UPDATE workflow_transitions SET requires_reason = true WHERE workflow_id = $1',
+          [workflow],
+        );
+        await client.query(
+          "UPDATE workflow_stages SET label = 'Begin' WHERE workflow_id = $1 AND code = 'START'",
+          [workflow],
+        );
+        await client.query(
+          "UPDATE workflow_versions SET status = 'ACTIVE', approved_by = $2, approved_at = now() WHERE id = $1",
+          [workflow, staff],
+        );
+
+        const frozen = { code: '55000' };
+        for (const sql of [
+          "UPDATE workflow_transitions SET action = 'CHANGED' WHERE workflow_id = $1",
+          'DELETE FROM workflow_transitions WHERE workflow_id = $1',
+          "INSERT INTO workflow_transitions(workflow_id, from_stage, action, to_stage, role_code) VALUES ($1, 'REVIEW', 'BACK', 'START', 'CONSULTANT')",
+          "INSERT INTO workflow_stages(workflow_id, code, label, display_order) VALUES ($1, 'EXTRA', 'Extra', 2)",
+          "DELETE FROM workflow_stages WHERE workflow_id = $1 AND code = 'REVIEW'",
+        ]) {
+          await refuses(client, sql, [workflow], frozen);
+        }
+      });
+    });
+    it('DB-020 refuses invalid local and directory identity combinations', async () => {
+      await fixture(async (client) => {
+        const insert =
+          'INSERT INTO staff_users(id, username, full_name, identity_provider, password_hash, external_subject) VALUES ($1::uuid, $1::text, $2, $3, $4, $5)';
+        const params = (provider, hash, subject) => [
+          randomUUID(),
+          'Synthetic staff',
+          provider,
+          hash,
+          subject,
+        ];
+        const invalid = { code: '23514' };
+        await refuses(client, insert, params('LOCAL', null, null), invalid);
+        await refuses(client, insert, params('LOCAL', 'x'.repeat(20), 'subject-1'), invalid);
+        await refuses(client, insert, params('DIRECTORY', null, null), invalid);
+        await refuses(client, insert, params('DIRECTORY', 'x'.repeat(20), 'subject-2'), invalid);
+        await refuses(client, insert, params('OTHER', null, 'subject-3'), invalid);
+        // The two valid shapes are accepted.
+        await client.query(insert, params('LOCAL', 'x'.repeat(20), null));
+        await client.query(insert, params('DIRECTORY', null, randomUUID()));
+      });
+    });
+    it('DB-021 refuses an assignment that ends before it starts', async () => {
+      await fixture(async (client, { chart, staff }) => {
+        const insert =
+          'INSERT INTO assignments(chart_id, task_code, staff_id, assigned_by, assigned_at, ended_at) VALUES ($1, $2, $3, $3, $4, $5)';
+        await refuses(
+          client,
+          insert,
+          [chart, 'CONTOURING', staff, '2030-01-02T00:00:00Z', '2030-01-01T23:59:59Z'],
+          { code: '23514' },
+        );
+        // Ending at the same instant, and staying open, are both valid.
+        await client.query(insert, [
+          chart,
+          'CONTOURING',
+          staff,
+          '2030-01-02T00:00:00Z',
+          '2030-01-02T00:00:00Z',
+        ]);
+        await client.query(insert, [chart, 'CONTOURING', staff, '2030-01-02T00:00:00Z', null]);
+      });
+    });
+    it('DB-022 allows one current owner per chart task and a new owner after the first ends', async () => {
+      await fixture(async (client, { chart, staff }) => {
+        const other = await addStaff(client);
+        const insert =
+          'INSERT INTO assignments(chart_id, task_code, staff_id, assigned_by) VALUES ($1, $2, $3, $4)';
+        await client.query(insert, [chart, 'CONTOURING', staff, staff]);
+        await refuses(client, insert, [chart, 'CONTOURING', other, staff], { code: '23505' });
+        await client.query(insert, [chart, 'PLANNING', other, staff]);
+        await client.query(
+          "UPDATE assignments SET ended_at = now() WHERE chart_id = $1 AND task_code = 'CONTOURING'",
+          [chart],
+        );
+        await client.query(insert, [chart, 'CONTOURING', other, staff]);
+      });
+    });
+    it('DB-023 requires a non-blank reason to record a rejection', async () => {
+      await fixture(async (client, { chart, staff }) => {
+        const submission = randomUUID();
+        await client.query(
+          "INSERT INTO review_submissions(id, chart_id, kind, revision, submitted_by) VALUES ($1, $2, 'CONTOURING', 1, $3)",
+          [submission, chart, staff],
+        );
+        const insert =
+          "INSERT INTO review_decisions(chart_id, submission_id, review_step, decision, reason, actor_id, actor_role) VALUES ($1, $2, $3, $4, $5, $6, 'SENIOR_RESIDENT')";
+        const decide = (step, decision, reason) => [
+          chart,
+          submission,
+          step,
+          decision,
+          reason,
+          staff,
+        ];
+        const invalid = { code: '23514' };
+        await refuses(client, insert, decide('SENIOR', 'REJECTED', null), invalid);
+        await refuses(client, insert, decide('SENIOR', 'REJECTED', ''), invalid);
+        await refuses(client, insert, decide('SENIOR', 'REJECTED', '   '), invalid);
+        await refuses(client, insert, decide('SENIOR', 'MAYBE', 'Unsure'), invalid);
+        await client.query(insert, decide('SENIOR', 'REJECTED', 'Outline crosses the structure'));
+        await client.query(insert, decide('CONSULTANT', 'APPROVED', null));
+      });
+    });
+    it('DB-024 requires an actor and a time to mark a prerequisite complete', async () => {
+      await fixture(async (client, { chart, staff }) => {
+        const insert =
+          'INSERT INTO chart_prerequisites(chart_id, code, status, recorded_by, recorded_at) VALUES ($1, $2, $3, $4, $5)';
+        const invalid = { code: '23514' };
+        await refuses(
+          client,
+          insert,
+          [chart, 'CONTOURING_APPROVED', 'COMPLETE', null, null],
+          invalid,
+        );
+        await refuses(
+          client,
+          insert,
+          [chart, 'CONTOURING_APPROVED', 'COMPLETE', staff, null],
+          invalid,
+        );
+        await refuses(
+          client,
+          insert,
+          [chart, 'CONTOURING_APPROVED', 'COMPLETE', null, '2030-01-01T00:00:00Z'],
+          invalid,
+        );
+        await refuses(
+          client,
+          insert,
+          [chart, 'CONTOURING_APPROVED', 'DONE', staff, '2030-01-01T00:00:00Z'],
+          invalid,
+        );
+        await client.query(insert, [
+          chart,
+          'CONTOURING_APPROVED',
+          'COMPLETE',
+          staff,
+          '2030-01-01T00:00:00Z',
+        ]);
+        await client.query(insert, [chart, 'PLAN_APPROVED', 'PENDING', null, null]);
+      });
+    });
+    it('DB-025 allows one open stall episode per chart and a new one after it resolves', async () => {
+      await fixture(async (client, { chart, workflow }) => {
+        const insert =
+          "INSERT INTO stall_episodes(chart_id, workflow_id, stage_code, stage_entered_at, threshold_minutes, resolved_at) VALUES ($1, $2, 'START', now() - interval '3 days', 1440, $3)";
+        await client.query(insert, [chart, workflow, null]);
+        await refuses(client, insert, [chart, workflow, null], { code: '23505' });
+        // A resolved episode does not block a later one, and cannot resolve before it was detected.
+        await client.query(insert, [chart, workflow, new Date().toISOString()]);
+        await refuses(client, insert, [chart, workflow, '2000-01-01T00:00:00Z'], { code: '23514' });
+        await client.query(
+          'UPDATE stall_episodes SET resolved_at = now() WHERE chart_id = $1 AND resolved_at IS NULL',
+          [chart],
+        );
+        await client.query(insert, [chart, workflow, null]);
+      });
+    });
+    it('DB-026 sends at most one notification per recipient and event', async () => {
+      await fixture(async (client, { chart, staff }) => {
+        const other = await addStaff(client);
+        const event = randomUUID();
+        const secondEvent = randomUUID();
+        for (const id of [event, secondEvent]) {
+          await client.query(
+            "INSERT INTO outbox_events(id, chart_id, event_type, payload) VALUES ($1, $2, 'TEST', '{}'::jsonb)",
+            [id, chart],
+          );
+        }
+        const insert =
+          "INSERT INTO notifications(recipient_id, event_id, chart_id, kind) VALUES ($1, $2, $3, 'TEST')";
+        await client.query(insert, [staff, event, chart]);
+        await refuses(client, insert, [staff, event, chart], { code: '23505' });
+        await client.query(insert, [other, event, chart]);
+        await client.query(insert, [staff, secondEvent, chart]);
+      });
+    });
+    it('DB-027 stores one response per actor and idempotency key', async () => {
+      await fixture(async (client, { staff }) => {
+        const other = await addStaff(client);
+        const key = randomUUID();
+        const insert =
+          "INSERT INTO idempotency_records(actor_id, request_key, request_hash, response_status, response_body, expires_at) VALUES ($1, $2, 'hash-1', $3, '{}'::jsonb, $4)";
+        const tomorrow = new Date(Date.now() + 86_400_000).toISOString();
+        await client.query(insert, [staff, key, 200, tomorrow]);
+        await refuses(client, insert, [staff, key, 200, tomorrow], { code: '23505' });
+        await client.query(insert, [other, key, 200, tomorrow]);
+        await refuses(client, insert, [staff, randomUUID(), 99, tomorrow], { code: '23514' });
+        await refuses(client, insert, [staff, randomUUID(), 600, tomorrow], { code: '23514' });
+        // An expiry in the past, or equal to the creation time, is refused.
+        await refuses(client, insert, [staff, randomUUID(), 200, '2000-01-01T00:00:00Z'], {
+          code: '23514',
+        });
+        await refuses(
+          client,
+          "INSERT INTO idempotency_records(actor_id, request_key, request_hash, response_status, response_body, created_at, expires_at) VALUES ($1, $2, 'hash-1', 200, '{}'::jsonb, $3, $3)",
+          [staff, randomUUID(), tomorrow],
+          { code: '23514' },
         );
       });
     });

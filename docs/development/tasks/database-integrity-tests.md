@@ -2,6 +2,24 @@
 
 Suggested branch: `task/database-integrity-tests`
 
+**Status: complete (24 October 2026).** All ten behaviors below are covered in `tests/database/suite.mjs`. Each test was checked by removing its constraint from a scratch copy of the schema and confirming the test then failed.
+
+| Behavior                                                 | Test   |
+| -------------------------------------------------------- | ------ |
+| Duplicate staff username rejected                        | DB-017 |
+| Invalid local/directory identity combinations rejected   | DB-020 |
+| Chart cannot begin at a non-initial stage                | DB-018 |
+| Published stage or transition cannot be edited           | DB-019 |
+| Assignment cannot end before it starts                   | DB-021 |
+| Rejection decision requires a non-empty reason           | DB-023 |
+| Completed prerequisite requires an actor and timestamp   | DB-024 |
+| Open stall episode unique per chart                      | DB-025 |
+| Notification unique per recipient and event              | DB-026 |
+| Idempotency record unique per actor and key, with expiry | DB-027 |
+| One current owner per chart task (added beyond the list) | DB-022 |
+
+DB-017 and DB-018 came from the first contributor's pull request. The task text below is kept for the next starter task's author as an example of scope and review expectations.
+
 This is a bounded starter task for the OncoTrack database foundation. Add useful tests against the existing RT schema without changing clinical workflow rules or application behavior.
 
 ## What already exists
