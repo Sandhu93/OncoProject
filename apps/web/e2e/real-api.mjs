@@ -9,6 +9,7 @@ import { PGlite } from '@electric-sql/pglite';
 import { btree_gist } from '@electric-sql/pglite/contrib/btree_gist';
 import { Test } from '@nestjs/testing';
 import { readdir, readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
 
 import { AppModule } from '../../api/dist/app.module.js';
 import { hashPassword } from '../../api/dist/auth/password.js';
@@ -16,6 +17,7 @@ import { configureApp } from '../../api/dist/bootstrap.js';
 import { DatabaseService } from '../../api/dist/database/database.service.js';
 
 export const REAL_API_PORT = Number(process.env.REAL_API_PORT ?? 4020);
+export const REAL_CONTROL_PORT = Number(process.env.REAL_CONTROL_PORT ?? 4021);
 export const REAL_PASSWORD = 'correct horse battery';
 
 const db = new PGlite({ extensions: { btree_gist } });
@@ -68,3 +70,46 @@ const app = testingModule.createNestApplication();
 configureApp(app);
 await app.listen(REAL_API_PORT, '127.0.0.1');
 console.log(`Real API on in-memory PostgreSQL listening on http://127.0.0.1:${REAL_API_PORT}`);
+
+/**
+ * A small control port for the browser tests, because a workflow can only be approved by a person in the real
+ * system and the tests have no such screen yet.
+ *   GET  /workflow           -> { active }
+ *   POST /activate-workflow  -> approves a synthetic two-stage workflow as real.consultant
+ */
+const hasActiveWorkflow = async () =>
+  (await db.query("SELECT 1 FROM workflow_versions WHERE status = 'ACTIVE'")).rows.length > 0;
+
+const activateWorkflow = async () => {
+  const approver = (await db.query("SELECT id FROM staff_users WHERE username = 'real.consultant'")).rows[0].id;
+  const { rows } = await db.query(
+    "INSERT INTO workflow_versions(code, version, label) VALUES ('e2e-workflow', 1, 'Synthetic e2e workflow') RETURNING id",
+  );
+  const id = rows[0].id;
+
+  await db.query(
+    "INSERT INTO workflow_stages(workflow_id, code, label, display_order, is_initial) VALUES ($1, 'ISSUED', 'Chart issued', 0, true), ($1, 'NEXT', 'Next step', 1, false)",
+    [id],
+  );
+  await db.query(
+    "UPDATE workflow_versions SET status = 'ACTIVE', approved_by = $2, approved_at = now() WHERE id = $1",
+    [id, approver],
+  );
+};
+
+createServer(async (request, response) => {
+  response.setHeader('Content-Type', 'application/json');
+
+  if (request.method === 'GET' && request.url === '/workflow') {
+    return response.end(JSON.stringify({ active: await hasActiveWorkflow() }));
+  }
+
+  if (request.method === 'POST' && request.url === '/activate-workflow') {
+    if (!(await hasActiveWorkflow())) await activateWorkflow();
+
+    return response.end(JSON.stringify({ active: true }));
+  }
+
+  response.statusCode = 404;
+  response.end('{}');
+}).listen(REAL_CONTROL_PORT, '127.0.0.1');

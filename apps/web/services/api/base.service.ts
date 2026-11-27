@@ -120,9 +120,9 @@ export const handleRequest = async <T = unknown>(slug: string, options: HandleRe
   }
 
   if (!result.ok) {
-    const { message, errors } = readApiError(result.data);
+    const { message, errors, code } = readApiError(result.data);
 
-    throw new ApiError(message ?? 'Something went wrong', result.status, errors);
+    throw new ApiError(message ?? 'Something went wrong', result.status, errors, code);
   }
 
   if (!parse) {

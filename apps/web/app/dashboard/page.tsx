@@ -1,8 +1,12 @@
+import Link from 'next/link';
+
 import type { Metadata } from 'next';
 
 import { CAPABILITY_LABELS, ROLE_LABELS } from '@/utils/labels';
 
 import StaffService from '@/services/api/staff.service';
+
+import AppHeader from '@/views/layout/AppHeader';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -20,14 +24,9 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
-      <header className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Dashboard</h1>
-        <form method="post" action="/api/auth/clear">
-          <button type="submit" className="font-medium underline underline-offset-4">
-            Log out
-          </button>
-        </form>
-      </header>
+      <AppHeader current="dashboard" fullName={staff.fullName} />
+
+      <h1 className="text-2xl font-semibold">Dashboard</h1>
 
       <section aria-labelledby="signed-in" className="flex flex-col gap-2">
         <h2 id="signed-in" className="text-lg font-medium">
@@ -49,8 +48,12 @@ export default async function DashboardPage() {
       </section>
 
       <p className="text-zinc-600 dark:text-zinc-400">
-        Chart queues and handoffs are not built yet. OncoTrack holds no patient names or other patient information: a
-        chart is identified by its RT number only.
+        Open the{' '}
+        <Link href="/charts" className="underline underline-offset-4">
+          charts
+        </Link>{' '}
+        to see every chart, find one by RT number and see how long it has waited. OncoTrack holds no patient names or
+        other patient information: a chart is identified by its RT number only.
       </p>
     </main>
   );

@@ -10,15 +10,18 @@ export class ApiError extends Error {
   public status: number;
   /** The API's field errors exactly as it sent them. */
   public errors?: unknown;
+  /** The API's stable refusal code (e.g. `RT_NUMBER_EXISTS`), when it sent one. */
+  public code?: string;
   /** `errors` turned into `{ field: ['message'] }` by `toFieldErrors`, for forms. */
   public fieldErrors?: FieldErrors;
 
-  constructor(message: string, status: number, errors?: unknown) {
+  constructor(message: string, status: number, errors?: unknown, code?: string) {
     super(message);
 
     this.name = 'ApiError';
     this.status = status;
     this.errors = errors;
+    this.code = code;
     this.fieldErrors = toFieldErrors(errors);
   }
 }
@@ -35,6 +38,7 @@ const isText = (value: unknown): value is string => typeof value === 'string' &&
  * | Shape                                   | Used by                              |
  * | --------------------------------------- | ------------------------------------ |
  * | `{ message, errors }`                   | Laravel, NestJS, many custom APIs    |
+ * | `{ code, message, details }`            | OncoTrack's API                      |
  * | `{ error: 'text' }`                     | Express, Rails, Go APIs              |
  * | `{ error: { message, details } }`       | Google-style JSON APIs               |
  * | `{ detail: 'text' }`, `{ detail: [...] }` | Django REST Framework, FastAPI     |
@@ -42,18 +46,20 @@ const isText = (value: unknown): value is string => typeof value === 'string' &&
  *
  * If your API uses another shape, change this function: everything else reads errors through it.
  */
-export const readApiError = (body: unknown): { message?: string; errors?: unknown } => {
+export const readApiError = (body: unknown): { message?: string; errors?: unknown; code?: string } => {
   if (!isRecord(body)) {
     return {};
   }
 
-  const { message, error, detail, title, errors } = body;
+  const { message, error, detail, title, errors, details, code } = body;
   const nested = isRecord(error) ? error : undefined;
 
   return {
     message: [message, nested?.message, error, detail, title].find(isText),
     // FastAPI puts validation errors in `detail` as a list.
-    errors: errors ?? nested?.details ?? nested?.errors ?? (Array.isArray(detail) ? detail : undefined),
+    // OncoTrack's API lists field problems in a top-level `details`: [{ field, message }].
+    errors: errors ?? details ?? nested?.details ?? nested?.errors ?? (Array.isArray(detail) ? detail : undefined),
+    code: isText(code) ? code : undefined,
   };
 };
 

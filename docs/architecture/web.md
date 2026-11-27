@@ -45,17 +45,21 @@ An invalid value stops the server at start-up with a list of what is wrong (`ins
 
 ## Layout
 
-| Path                  | Purpose                                                                           |
-| --------------------- | --------------------------------------------------------------------------------- |
-| `app/`                | Pages, server actions and route handlers                                          |
-| `views/`              | Page-level components                                                             |
-| `services/api/`       | The only code that calls the API (`handleRequest`, `AuthService`, `StaffService`) |
-| `services/app/`       | Cookie and session storage                                                        |
-| `proxy.ts`            | Sends logged-out users to login and logged-in users away from it                  |
-| `constants/routes.ts` | Which pages need login (`PROTECTED_ROUTES`)                                       |
-| `e2e/`                | Browser tests                                                                     |
+| Path                  | Purpose                                                                                           |
+| --------------------- | ------------------------------------------------------------------------------------------------- |
+| `app/`                | Pages, server actions and route handlers                                                          |
+| `views/`              | Page-level components (`charts/`, `layout/`, `login/`)                                            |
+| `services/api/`       | The only code that calls the API (`handleRequest`, `AuthService`, `StaffService`, `ChartService`) |
+| `services/app/`       | Cookie and session storage                                                                        |
+| `proxy.ts`            | Sends logged-out users to login and logged-in users away from it                                  |
+| `constants/routes.ts` | Which pages need login (`PROTECTED_ROUTES`)                                                       |
+| `e2e/`                | Browser tests                                                                                     |
 
 ## Tests
 
-- `npm test -w @oncotrack/web`: unit tests (Vitest, 256 at the time of writing).
-- `npm run test:e2e`: browser tests (Playwright). Project `chromium` runs against a stand-in API (`e2e/mock-api.mjs`) that copies the real responses. Project `real-api` (WEB-020) runs the same web app against the real API on an in-memory PostgreSQL with every migration applied (`e2e/real-api.mjs`). Both need `npm run build` first.
+- `npm test -w @oncotrack/web`: unit tests (Vitest, 301 at the time of writing).
+- `npm run test:e2e`: browser tests (Playwright). Project `chromium` runs against a stand-in API (`e2e/mock-api.mjs`) that copies the real responses. Project `real-api` (WEB-020) runs the same web app against the real API on an in-memory PostgreSQL with every migration applied (`e2e/real-api.mjs`). The real API project also starts a small control port (4021) so a test can approve a synthetic workflow, which has no screen yet. Both need `npm run build` first.
+
+## Charts screens
+
+`/charts`, `/charts/<RT number>` and `/charts/new` are protected pages. The RT number is the only identifier and may contain `/`, so it is encoded in addresses. Search and paging live in the address (a plain GET form), so a result can be bookmarked. `issueChart` (a server action) validates, sends a fresh `Idempotency-Key` per submission and returns errors instead of throwing, because production hides the message of a thrown server-action error. `ApiError` carries the API's stable `code`, and `readApiError` reads the API's `{ code, message, details }` shape.

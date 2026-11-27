@@ -18,13 +18,13 @@ export default defineConfig({
     {
       // Fast and independent of the API: a stand-in API that copies the real responses (e2e/mock-api.mjs).
       name: 'chromium',
-      testIgnore: 'real-api.spec.ts',
+      testIgnore: /real-api(-.+)?\.spec\.ts/,
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${MOCK_PORT}` },
     },
     {
       // The same web app against the real API on an in-memory PostgreSQL (e2e/real-api.mjs).
       name: 'real-api',
-      testMatch: 'real-api.spec.ts',
+      testMatch: /real-api(-.+)?\.spec\.ts/,
       workers: 1,
       use: { ...devices['Desktop Chrome'], baseURL: `http://localhost:${REAL_PORT}` },
     },

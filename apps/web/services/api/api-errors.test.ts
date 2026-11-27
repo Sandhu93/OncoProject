@@ -39,6 +39,27 @@ describe('readApiError', () => {
   });
 });
 
+describe('readApiError with the OncoTrack API shape', () => {
+  it('reads the stable code, message and top-level field details', () => {
+    const body = {
+      code: 'VALIDATION_FAILED',
+      message: 'Some fields need attention.',
+      details: [{ field: 'rtNumber', message: 'Enter the RT number.' }],
+    };
+
+    expect(readApiError(body)).toEqual({
+      message: 'Some fields need attention.',
+      errors: body.details,
+      code: 'VALIDATION_FAILED',
+    });
+    expect(toFieldErrors(readApiError(body).errors)).toEqual({ rtNumber: ['Enter the RT number.'] });
+  });
+
+  it('ignores a code that is not text', () => {
+    expect(readApiError({ code: 42, message: 'x' }).code).toBeUndefined();
+  });
+});
+
 describe('toFieldErrors', () => {
   it.each([
     ['message lists (Laravel, ASP.NET)', { email: ['Taken', 'Invalid'] }, { email: ['Taken', 'Invalid'] }],
@@ -67,6 +88,13 @@ describe('toFieldErrors', () => {
       expect(toFieldErrors(errors)).toBeUndefined();
     },
   );
+});
+
+describe('ApiError code', () => {
+  it('carries the API refusal code', () => {
+    expect(new ApiError('Exists', 409, undefined, 'RT_NUMBER_EXISTS').code).toBe('RT_NUMBER_EXISTS');
+    expect(new ApiError('Exists', 409).code).toBeUndefined();
+  });
 });
 
 describe('ApiError', () => {
