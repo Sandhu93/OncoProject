@@ -111,3 +111,62 @@ export function evaluateTransition(
   }
   return { allowed: true, nextStage: rule.to };
 }
+
+export const CHART_PRIORITIES = ['ROUTINE', 'URGENT'] as const;
+export type ChartPriority = (typeof CHART_PRIORITIES)[number];
+export type ChartStatus = 'OPEN' | 'CLOSED' | 'DISCONTINUED';
+
+/** Fields for issuing a chart. The RT number is typed in by the consultant who creates the file. */
+export interface IssueChartRequest {
+  rtNumber: string;
+  plannedSessions: number;
+  priority?: ChartPriority;
+  /** Optional short pointers into the planning system. Never patient names, images or findings. */
+  planId?: string;
+  contourSetName?: string;
+  scanReference?: string;
+}
+
+/** A chart as the work tracker shows it. A chart holds no patient information. */
+export interface ChartSummary {
+  id: string;
+  rtNumber: string;
+  stage: { code: string; label: string };
+  stageSince: string;
+  minutesInStage: number;
+  status: ChartStatus;
+  version: number;
+  plannedSessions: number | null;
+  priority: ChartPriority;
+  planId: string | null;
+  contourSetName: string | null;
+  scanReference: string | null;
+  issuedBy: string;
+  createdAt: string;
+}
+
+export interface ChartHistoryEntry {
+  action: string;
+  fromStage: string | null;
+  toStage: string;
+  actorName: string;
+  actorRoles: readonly string[];
+  reason: string | null;
+  occurredAt: string;
+}
+
+export interface ChartDetail extends ChartSummary {
+  history: readonly ChartHistoryEntry[];
+}
+
+export interface ChartList {
+  items: readonly ChartSummary[];
+  total: number;
+}
+
+/** Error body for every refused request. `details` lists the fields that failed validation. */
+export interface ApiErrorBody {
+  code: string;
+  message: string;
+  details?: readonly { field: string; message: string }[];
+}
