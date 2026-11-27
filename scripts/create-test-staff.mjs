@@ -5,7 +5,6 @@
 // Set TEST_STAFF_PASSWORD to choose the password; otherwise the default below is used.
 import { randomUUID } from 'node:crypto';
 import { createPool } from './database.mjs';
-import { checkPasswordPolicy, hashPassword } from '../apps/api/dist/auth/password.js';
 
 const DEFAULT_PASSWORD = 'OncoTrack-Test-2026';
 const ACCOUNTS = [
@@ -52,13 +51,20 @@ if (
   );
 }
 
+// Loaded after the safety check above, so a refused run never needs the API build.
+const { checkPasswordPolicy, hashPassword } = await import('../apps/api/dist/auth/password.js');
+
 const password = process.env.TEST_STAFF_PASSWORD ?? DEFAULT_PASSWORD;
 const problem = checkPasswordPolicy(password);
 if (problem) fail(problem);
 const passwordHash = await hashPassword(password);
 
 const pool = createPool(url);
-const client = await pool.connect();
+const client = await pool.connect().catch(() => {
+  fail(
+    'Cannot reach the database. Is it running (docker compose up -d --wait db) and is DATABASE_URL right?',
+  );
+});
 try {
   await client.query('BEGIN');
   for (const account of ACCOUNTS) {
