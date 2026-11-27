@@ -6,7 +6,6 @@ The executable source of truth is the numbered files in [database/migrations](..
 
 ```mermaid
 erDiagram
-  PATIENTS ||--o{ RT_CHARTS : has
   WORKFLOW_VERSIONS ||--o{ WORKFLOW_STAGES : defines
   WORKFLOW_VERSIONS ||--o{ RT_CHARTS : governs
   RT_CHARTS ||--o{ CHART_STAGE_HISTORY : records
@@ -27,7 +26,7 @@ erDiagram
 
 ## Integrity rules implemented in SQL
 
-- Unique chart display number, username and optional hospital patient number.
+- Unique chart display number (the RT number) and username. There is no patient table or patient column (migration 003); test DB-028 guards this.
 - A new chart requires an active approved workflow and starts at that workflow's initial stage.
 - The chart's workflow version cannot be changed in place; approved definitions cannot be edited through normal DML. An ACTIVE version can only be retired (migration 002); a retired version is final, rejects new charts, and charts already on it keep running on it. Moving live charts to a newer version still needs a designed follow-up change.
 - Composite foreign keys prevent mixing stages from different workflows or decisions from different charts.

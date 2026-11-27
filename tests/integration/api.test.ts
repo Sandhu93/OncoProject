@@ -16,9 +16,10 @@ class ProtectedProbeController {
 
 describe('API-001 health and fail-closed boundary', () => {
   let app: INestApplication;
-  const database = { isReady: vi.fn() };
+  const database = { isReady: vi.fn(), query: vi.fn() };
   beforeEach(async () => {
     database.isReady.mockResolvedValue(true);
+    database.query.mockResolvedValue({ rows: [], rowCount: 0 });
     const module = await Test.createTestingModule({
       imports: [AppModule],
       controllers: [ProtectedProbeController],
@@ -54,5 +55,12 @@ describe('API-001 health and fail-closed boundary', () => {
       .set('X-Role', 'CONSULTANT')
       .set('Authorization', 'Bearer fabricated')
       .expect(401);
+  });
+  it('fails closed with 503 when sessions cannot be checked', async () => {
+    database.query.mockRejectedValue(new Error('database down'));
+    await request(app.getHttpServer())
+      .get('/api/v1/protected-probe')
+      .set('Authorization', `Bearer ${'A'.repeat(43)}`)
+      .expect(503);
   });
 });

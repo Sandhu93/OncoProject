@@ -1,6 +1,6 @@
 # Mobile delivery boundary
 
-Android and iOS daily workflows remain a required milestone. Native projects are intentionally not generated in the initial web/API foundation: the hospital's distribution/signing approach and local patient-data policy are unresolved.
+Android and iOS daily workflows remain a required milestone. Native projects are intentionally not generated in the initial web/API foundation: the hospital's distribution/signing approach and device policy are unresolved. The application holds no patient information.
 
 Build using React Native, consuming `@oncotrack/contracts` and the versioned API. Do not import web DOM components or store credentials in plain application storage. Select and lock a compatible React Native toolchain during the mobile spike; validate both OS builds on physical devices.
 

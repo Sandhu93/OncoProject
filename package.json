@@ -27,7 +27,8 @@
     "test:e2e": "playwright test",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm test && npm run test:db:embedded && npm run build",
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
-    "db:seed": "node --env-file-if-exists=.env scripts/seed.mjs"
+    "db:seed": "node --env-file-if-exists=.env scripts/seed.mjs",
+    "staff:create": "npm run build -w @oncotrack/contracts && npm run build -w @oncotrack/api && node --env-file-if-exists=.env scripts/create-staff.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.8",

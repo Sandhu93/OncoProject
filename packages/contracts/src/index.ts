@@ -8,6 +8,36 @@ export const CLINICAL_ROLES = [
 
 export type ClinicalRole = (typeof CLINICAL_ROLES)[number];
 
+export const STAFF_CAPABILITIES = [
+  'MANAGE_STAFF',
+  'CONFIGURE_WORKFLOW',
+  'VIEW_AUDIT',
+  'EXPORT_REPORTS',
+] as const;
+
+export type StaffCapability = (typeof STAFF_CAPABILITIES)[number];
+
+export interface LoginRequest {
+  username: string;
+  password: string;
+}
+
+/** Token response shape accepted by the web login template (access_token, expires_in in seconds). */
+export interface LoginResponse {
+  access_token: string;
+  token_type: 'Bearer';
+  expires_in: number;
+}
+
+/** The signed-in staff member, as the server sees them. Never includes secrets. */
+export interface StaffProfile {
+  id: string;
+  username: string;
+  fullName: string;
+  roles: readonly ClinicalRole[];
+  capabilities: readonly StaffCapability[];
+}
+
 export interface HealthResponse {
   status: 'ok' | 'unavailable';
   service: 'oncotrack-api';

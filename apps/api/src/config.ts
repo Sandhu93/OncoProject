@@ -9,5 +9,14 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
       throw new Error('DATABASE_URL must use PostgreSQL.');
     }
   }
-  return { port, host: env.API_HOST ?? '127.0.0.1', databaseUrl: env.DATABASE_URL };
+  const sessionTtlHours = Number(env.SESSION_TTL_HOURS ?? 12);
+  if (!Number.isInteger(sessionTtlHours) || sessionTtlHours < 1 || sessionTtlHours > 72) {
+    throw new Error('SESSION_TTL_HOURS must be an integer between 1 and 72.');
+  }
+  return {
+    port,
+    host: env.API_HOST ?? '127.0.0.1',
+    databaseUrl: env.DATABASE_URL,
+    sessionTtlHours,
+  };
 }

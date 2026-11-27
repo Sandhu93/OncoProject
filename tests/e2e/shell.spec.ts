@@ -13,7 +13,9 @@ test('WEB-001 shows truthful availability and recovery', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Every handoff, accounted for.' })).toBeVisible();
   await expect(page.getByText('Unavailable', { exact: true })).toBeVisible();
   await expect(
-    page.getByText('Staff login and patient workflows are not implemented.', { exact: false }),
+    page.getByText('Staff login and chart workflows are not implemented in the web app yet.', {
+      exact: false,
+    }),
   ).toBeVisible();
   ready = true;
   await page.getByRole('button', { name: 'Check again' }).click();

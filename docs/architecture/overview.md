@@ -18,16 +18,16 @@ The checked-in Compose app profile is a localhost HTTP preview, not the illustra
 
 ## Boundaries
 
-| Area       | Responsibility                                                          | Current state                                                       |
-| ---------- | ----------------------------------------------------------------------- | ------------------------------------------------------------------- |
-| Identity   | Authenticate sessions and scope records/actions                         | Default-deny guard implemented; identity provider and login pending |
-| Registry   | Patient identity and RT chart lifecycle                                 | Schema only                                                         |
-| Workflow   | Authorized action, expected version, prerequisites, approved definition | Pure policy function and schema; persistence command pending        |
-| Reviews    | Submission revisions and decisions                                      | Schema only                                                         |
-| Scheduling | Resource capacity, readiness and booking lifecycle                      | Database overlap constraint; application commands pending           |
-| Follow-up  | Stalls, calls, notifications and delivery                               | Schema only; worker pending                                         |
-| Audit      | Append-only mutation record                                             | Protected tables; application capture pending                       |
-| Health     | Liveness and database/schema readiness                                  | Implemented                                                         |
+| Area       | Responsibility                                                          | Current state                                                                                              |
+| ---------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Identity   | Authenticate sessions and scope records/actions                         | Local-account login, server-side sessions, lockout and audit implemented; directory sign-in pending (D-08) |
+| Registry   | RT chart lifecycle (RT number only; no patient data)                    | Schema only                                                                                                |
+| Workflow   | Authorized action, expected version, prerequisites, approved definition | Pure policy function and schema; persistence command pending                                               |
+| Reviews    | Submission revisions and decisions                                      | Schema only                                                                                                |
+| Scheduling | Resource capacity, readiness and booking lifecycle                      | Database overlap constraint; application commands pending                                                  |
+| Follow-up  | Stalls, calls, notifications and delivery                               | Schema only; worker pending                                                                                |
+| Audit      | Append-only mutation record                                             | Protected tables; application capture pending                                                              |
+| Health     | Liveness and database/schema readiness                                  | Implemented                                                                                                |
 
 Keep future modules under `apps/api/src/<module>`. Controllers validate input and authenticate requests; command services enforce domain rules; repositories perform parameterized SQL. Do not let frontend state authorize changes. Shared contracts provide types and policy vocabulary, not trusted client claims.
 
@@ -47,16 +47,18 @@ No stage-change endpoint is exposed until this transaction service and identity 
 
 ## Recorded decisions
 
-| ID      | Decision                                            | Reason                                                                                                                                 |
-| ------- | --------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| ADR-001 | RT is the working domain                            | Later source documents correct the chemo assumption; user accepted the assessment.                                                     |
-| ADR-002 | Separate patient identity and RT charts             | Repeated charts/courses must not overwrite one patient's prior history.                                                                |
-| ADR-003 | Plain SQL migrations plus `pg`                      | Constraints, composite foreign keys and PostgreSQL range exclusions are directly reviewable. No ORM needed for the initial foundation. |
-| ADR-004 | Draft workflow fixture, no clinical seed            | Exact 13-stage RT definition is absent; software must not silently invent it.                                                          |
-| ADR-005 | Deny private API routes until authentication exists | Makes accidental endpoint exposure fail closed during development.                                                                     |
-| ADR-006 | Single backend, future database outbox worker       | Fits the documented low volume and avoids losing handoff events after a process crash.                                                 |
-| ADR-007 | No native scaffold or external push yet             | Distribution/signing and device data boundaries remain open; mobile stays an explicit milestone.                                       |
-| ADR-008 | Embedded SQL smoke tests plus real PostgreSQL CI    | Local schema checks work without Docker, while server behavior still has a separate verification path.                                 |
+| ID      | Decision                                                         | Reason                                                                                                                                          |
+| ------- | ---------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| ADR-001 | RT is the working domain                                         | Later source documents correct the chemo assumption; user accepted the assessment.                                                              |
+| ADR-002 | ~~Separate patient identity and RT charts~~                      | Superseded by ADR-008: there is no patient identity. A repeat course gets a new RT number, so earlier charts are never overwritten.             |
+| ADR-003 | Plain SQL migrations plus `pg`                                   | Constraints, composite foreign keys and PostgreSQL range exclusions are directly reviewable. No ORM needed for the initial foundation.          |
+| ADR-004 | Draft workflow fixture, no clinical seed                         | Exact 13-stage RT definition is absent; software must not silently invent it.                                                                   |
+| ADR-005 | Deny private API routes unless authenticated                     | Fail closed. Implemented as server-side sessions (opaque token, SHA-256 stored); roles come from the database, never from headers.              |
+| ADR-006 | Single backend, future database outbox worker                    | Fits the documented low volume and avoids losing handoff events after a process crash.                                                          |
+| ADR-007 | No native scaffold or external push yet                          | Distribution/signing and device data boundaries remain open; mobile stays an explicit milestone.                                                |
+| ADR-008 | No patient information in the application (28 Nov 2026)          | OncoTrack is an internal work-status tracker. Charts are identified by RT number only; staff look the patient up in their own clinical systems. |
+| ADR-009 | NestJS + PostgreSQL on the hospital's local server (28 Nov 2026) | Everything is hosted on-premise; no cloud platform. The web app talks to this API only.                                                         |
+| ADR-008 | Embedded SQL smoke tests plus real PostgreSQL CI                 | Local schema checks work without Docker, while server behavior still has a separate verification path.                                          |
 
 ## Tooling references
 

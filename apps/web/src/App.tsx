@@ -92,8 +92,9 @@ export function App() {
             <li>Record the action in audit history</li>
           </ol>
           <p className="notice">
-            This is a development shell. Staff login and patient workflows are not implemented. Use
-            synthetic data only; the clinical stage definitions are still awaiting confirmation.
+            This is a development shell. Staff login and chart workflows are not implemented in the
+            web app yet. Use synthetic data only; the clinical stage definitions are still awaiting
+            confirmation.
           </p>
         </section>
       </main>

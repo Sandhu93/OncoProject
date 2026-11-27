@@ -25,9 +25,16 @@ Work since the foundation (uncommitted until reviewed):
 
 Verification in a Linux sandbox: embedded database suite 18 of 18 passed; ESLint and Prettier clean. Vitest, type checking, Docker, the real PostgreSQL suite and browser tests could not run there (Windows-installed dependencies) and must be run on the development PC with `npm run check`.
 
+## Update, 28 November 2026
+
+- Scope decision: no patient information in the application. Migration `003_remove_patient_identity.sql` drops `patients` and `rt_charts.patient_id`; test DB-028 keeps it that way. Superseded ADR-002; see ADR-008 and ADR-009 (NestJS + PostgreSQL on the hospital's local server).
+- Staff sign-in: `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`. scrypt password hashes, opaque session tokens stored only as SHA-256, five failures lock a name for 15 minutes, deactivated users lose their sessions immediately, sign-in and sign-out are audited. The guard checks the database on every request and answers 503 if it cannot.
+- `npm run staff:create` provisions a local account on the server (hidden password prompt). Provisioning screens and endpoints (MANAGE_STAFF) come later.
+- Tests AUTH-001 and AUTH-002 run against the real migrations in an embedded PostgreSQL.
+
 ## Still to implement
 
-Authentication and account provisioning; patient/chart commands; approved clinical workflow; persistence/idempotency transaction service; full role dashboards; scheduling readiness and overrides; outbox/stall workers; reports; native mobile apps; production TLS/storage/least-privilege provisioning; backups and recovery automation.
+Account provisioning screens and directory sign-in; chart commands; approved clinical workflow; persistence/idempotency transaction service; full role dashboards; scheduling readiness and overrides; outbox/stall workers; reports; native mobile apps; production TLS/storage/least-privilege provisioning; backups and recovery automation.
 
 ## Verification
 

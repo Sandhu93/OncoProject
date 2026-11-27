@@ -18,7 +18,6 @@ export function registerSchemaTests(name, createDatabase) {
     async function fixture(run) {
       const client = await pool.connect();
       const staff = randomUUID();
-      const patient = randomUUID();
       const workflow = randomUUID();
       const chart = randomUUID();
       const unit = randomUUID();
@@ -27,10 +26,6 @@ export function registerSchemaTests(name, createDatabase) {
         await client.query(
           "INSERT INTO staff_users(id, username, full_name, identity_provider, external_subject) VALUES ($1::uuid, $1::text, 'Synthetic test staff', 'DIRECTORY', $1::text)",
           [staff],
-        );
-        await client.query(
-          "INSERT INTO patients(id, full_name, created_by) VALUES ($1, 'Synthetic patient', $2)",
-          [patient, staff],
         );
         await client.query(
           "INSERT INTO workflow_versions(id, code, version, label) VALUES ($1::uuid, $1::text, 1, 'Synthetic test workflow')",
@@ -45,8 +40,8 @@ export function registerSchemaTests(name, createDatabase) {
           [workflow, staff],
         );
         await client.query(
-          "INSERT INTO rt_charts(id, patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1::uuid,$2,$1::text,$3,'START',$4,$4)",
-          [chart, patient, workflow, staff],
+          "INSERT INTO rt_charts(id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1::uuid,$1::text,$2,'START',$3,$3)",
+          [chart, workflow, staff],
         );
         const resource = randomUUID();
         await client.query(
@@ -57,7 +52,7 @@ export function registerSchemaTests(name, createDatabase) {
           "INSERT INTO resource_units(id, resource_id, label) VALUES ($1,$2,'Unit 1')",
           [unit, resource],
         );
-        await run(client, { staff, patient, workflow, chart, unit });
+        await run(client, { staff, workflow, chart, unit });
       } finally {
         await client.query('ROLLBACK');
         client.release();
@@ -103,7 +98,7 @@ export function registerSchemaTests(name, createDatabase) {
       for (const row of result.rows) assert.match(row.checksum, /^[a-f0-9]{64}$/);
     });
     it('DB-002 keeps development seed draft and rejects chart creation against it', async () => {
-      await fixture(async (client, { patient, staff }) => {
+      await fixture(async (client, { staff }) => {
         const seed = await readFile(
           new URL('../../database/seeds/development.sql', import.meta.url),
           'utf8',
@@ -112,19 +107,19 @@ export function registerSchemaTests(name, createDatabase) {
         await client.query(seed);
         await assert.rejects(
           client.query(
-            "INSERT INTO rt_charts(patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1,$3,'00000000-0000-4000-8000-000000000001','REGISTERED',$2,$2)",
-            [patient, staff, randomUUID()],
+            "INSERT INTO rt_charts(display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($2,'00000000-0000-4000-8000-000000000001','REGISTERED',$1,$1)",
+            [staff, randomUUID()],
           ),
           { code: '55000' },
         );
       });
     });
     it('DB-003 refuses duplicate display RT numbers', async () => {
-      await fixture(async (client, { patient, staff, workflow, chart }) => {
+      await fixture(async (client, { staff, workflow, chart }) => {
         await assert.rejects(
           client.query(
-            "INSERT INTO rt_charts(patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1,$2,$3,'START',$4,$4)",
-            [patient, chart, workflow, staff],
+            "INSERT INTO rt_charts(display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1,$2,'START',$3,$3)",
+            [chart, workflow, staff],
           ),
           { code: '23505' },
         );
@@ -196,11 +191,11 @@ export function registerSchemaTests(name, createDatabase) {
       });
     });
     it('DB-009 cannot attach an approval to a different chart', async () => {
-      await fixture(async (client, { chart, patient, staff, workflow }) => {
+      await fixture(async (client, { chart, staff, workflow }) => {
         const otherChart = randomUUID();
         await client.query(
-          "INSERT INTO rt_charts(id,patient_id,display_number,workflow_id,current_stage,consultant_id,created_by) VALUES ($1::uuid,$2,$1::text,$3,'START',$4,$4)",
-          [otherChart, patient, workflow, staff],
+          "INSERT INTO rt_charts(id,display_number,workflow_id,current_stage,consultant_id,created_by) VALUES ($1::uuid,$1::text,$2,'START',$3,$3)",
+          [otherChart, workflow, staff],
         );
         const submission = await client.query(
           "INSERT INTO review_submissions(chart_id,kind,revision,submitted_by) VALUES ($1,'CONTOURING',1,$2) RETURNING id",
@@ -296,7 +291,7 @@ export function registerSchemaTests(name, createDatabase) {
       });
     });
     it('DB-013 retires only ACTIVE workflows, keeps live charts running and blocks new ones', async () => {
-      await fixture(async (client, { staff, patient, workflow, chart }) => {
+      await fixture(async (client, { staff, workflow, chart }) => {
         await refuses(
           client,
           "UPDATE workflow_versions SET label = 'Renamed' WHERE id = $1",
@@ -317,8 +312,8 @@ export function registerSchemaTests(name, createDatabase) {
         });
         await refuses(
           client,
-          "INSERT INTO rt_charts(patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1, $2, $3, 'START', $4, $4)",
-          [patient, randomUUID(), workflow, staff],
+          "INSERT INTO rt_charts(display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1, $2, 'START', $3, $3)",
+          [randomUUID(), workflow, staff],
           { code: '55000' },
         );
         await client.query(
@@ -397,7 +392,7 @@ export function registerSchemaTests(name, createDatabase) {
       });
     });
     it('DB-016 lists missing Saturday updates using Asia/Kolkata calendar boundaries', async () => {
-      await fixture(async (client, { staff, patient }) => {
+      await fixture(async (client, { staff }) => {
         const workflow = await addDraftWorkflow(
           client,
           "INSERT INTO workflow_stages(workflow_id, code, label, display_order, is_initial, requires_weekly_update, weekly_update_roles) VALUES ($1, 'START', 'Start', 0, true, false, '{}'), ($1, 'TREATING', 'Treating', 1, false, true, ARRAY['JUNIOR_RESIDENT','RADIOGRAPHER'])",
@@ -409,8 +404,8 @@ export function registerSchemaTests(name, createDatabase) {
         const open = async (since, status) => {
           const id = randomUUID();
           await client.query(
-            "INSERT INTO rt_charts(id, patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1::uuid, $2, $1::text, $3, 'START', $4, $4)",
-            [id, patient, workflow, staff],
+            "INSERT INTO rt_charts(id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1::uuid, $1::text, $2, 'START', $3, $3)",
+            [id, workflow, staff],
           );
           await client.query(
             'UPDATE rt_charts SET current_stage = $2, current_stage_since = $3, status = $4 WHERE id = $1',
@@ -469,11 +464,11 @@ export function registerSchemaTests(name, createDatabase) {
       });
     });
     it('DB-018 refuses a chart starting at a non-initial stage', async () => {
-      await fixture(async (client, { patient, staff, workflow }) => {
+      await fixture(async (client, { staff, workflow }) => {
         await assert.rejects(
           client.query(
-            "INSERT INTO rt_charts(patient_id, display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1,$2,$3,'REVIEW',$4,$4)",
-            [patient, randomUUID(), workflow, staff],
+            "INSERT INTO rt_charts(display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($1,$2,'REVIEW',$3,$3)",
+            [randomUUID(), workflow, staff],
           ),
           { code: '55000' },
         );
@@ -696,6 +691,20 @@ export function registerSchemaTests(name, createDatabase) {
           [staff, randomUUID(), tomorrow],
           { code: '23514' },
         );
+      });
+    });
+    it('DB-028 holds no patient identity: no patients table and no patient column on charts', async () => {
+      const table = await pool.query("SELECT to_regclass('public.patients') AS name");
+      assert.equal(table.rows[0].name, null);
+      const columns = await pool.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND column_name ~ '(patient|hospital_number|contact_number|phone)'",
+      );
+      assert.deepEqual(columns.rows, []);
+      await fixture(async (client, { chart }) => {
+        const row = await client.query('SELECT display_number FROM rt_charts WHERE id = $1', [
+          chart,
+        ]);
+        assert.equal(row.rowCount, 1);
       });
     });
   });

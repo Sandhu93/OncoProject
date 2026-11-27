@@ -3,8 +3,10 @@ info:
   title: OncoTrack foundation API
   version: 0.1.0
   description: >-
-    Implemented foundation routes only. No staff login, patient, chart or workflow mutation
-    API is exposed yet. New non-public routes are denied by the initial global guard.
+    Implemented routes: health and staff sign-in, sign-out and profile. No chart or workflow
+    mutation API is exposed yet. OncoTrack holds no patient names or other patient information;
+    a chart is identified only by its RT number. Every route except health and login needs a
+    Bearer session token; a database failure while checking it returns 503, never access.
 servers:
   - url: http://localhost:3000/api/v1
 paths:
@@ -38,8 +40,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Unavailable'
+  /auth/login:
+    post:
+      operationId: login
+      summary: Sign in with a local staff username and password
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Session created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Missing, mistyped or oversized username or password
+        '401':
+          description: Wrong username or password (the same answer for an unknown name)
+        '429':
+          description: Too many failed attempts for this name; try again later
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LockedOut'
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: End the current session
+      security:
+        - bearer: []
+      responses:
+        '204':
+          description: Session revoked
+        '401':
+          description: Not signed in
+  /auth/me:
+    get:
+      operationId: getCurrentStaff
+      summary: The signed-in staff member, roles and capabilities
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: Profile as held by the server
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StaffProfile'
+        '401':
+          description: Not signed in or session expired
 components:
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      description: Opaque session token from /auth/login. Only its SHA-256 is stored.
   schemas:
+    LoginRequest:
+      type: object
+      additionalProperties: false
+      required: [username, password]
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 100
+        password:
+          type: string
+          minLength: 1
+          maxLength: 128
+    LoginResponse:
+      type: object
+      required: [access_token, token_type, expires_in]
+      properties:
+        access_token:
+          type: string
+        token_type:
+          const: Bearer
+        expires_in:
+          type: integer
+          description: Seconds until the session expires
+    LockedOut:
+      type: object
+      properties:
+        message:
+          type: string
+        retryAfterSeconds:
+          type: integer
+    StaffProfile:
+      type: object
+      required: [id, username, fullName, roles, capabilities]
+      properties:
+        id:
+          type: string
+          format: uuid
+        username:
+          type: string
+        fullName:
+          type: string
+        roles:
+          type: array
+          items:
+            enum: [JUNIOR_RESIDENT, SENIOR_RESIDENT, CONSULTANT, PHYSICIST, RADIOGRAPHER]
+        capabilities:
+          type: array
+          items:
+            enum: [MANAGE_STAFF, CONFIGURE_WORKFLOW, VIEW_AUDIT, EXPORT_REPORTS]
     Healthy:
       type: object
       additionalProperties: false
