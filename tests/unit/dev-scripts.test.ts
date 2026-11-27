@@ -1,9 +1,9 @@
 import { spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 
-const run = (script: string, env: Record<string, string>) =>
+const run = (script: string, env: Record<string, string | undefined>) =>
   spawnSync(process.execPath, [new URL(`../../scripts/${script}`, import.meta.url).pathname], {
-    env: { PATH: process.env.PATH ?? '', ...env },
+    env: { PATH: process.env.PATH ?? '', ...env } as NodeJS.ProcessEnv,
     encoding: 'utf8',
   });
 
