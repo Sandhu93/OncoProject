@@ -6,6 +6,7 @@ import { AuthService } from './auth/auth.service.js';
 import { SessionService } from './auth/session.service.js';
 import { DatabaseService } from './database/database.service.js';
 import { HealthController } from './health/health.controller.js';
+import { CommandService } from './transactions/command.service.js';
 
 @Module({
   controllers: [HealthController, AuthController],
@@ -13,6 +14,7 @@ import { HealthController } from './health/health.controller.js';
     DatabaseService,
     SessionService,
     AuthService,
+    CommandService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })

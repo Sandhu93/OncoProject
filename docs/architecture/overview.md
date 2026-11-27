@@ -43,7 +43,9 @@ For a future state-changing command:
 6. Update current state and increment version; insert history, audit, result and outbox event in the same transaction.
 7. Commit, then return the saved result. Publish notifications through the outbox worker after commit.
 
-No stage-change endpoint is exposed until this transaction service and identity are implemented. The current pure function cannot supply database locking, idempotency or authorization by itself.
+`CommandService` (`apps/api/src/transactions`) implements steps 2, 5 and 7 for every command: the idempotency record (a retry with the same key returns the first answer for 24 hours; the same key for a different request is refused with `IDEMPOTENCY_KEY_REUSED`), one transaction, and rollback with no saved record when the command is refused. Commands throw `DomainError` with a stable code. Tests TXN-001 and TXN-002.
+
+No stage-change endpoint is exposed until the chart commands that use this service are implemented. The current pure function cannot supply database locking, idempotency or authorization by itself.
 
 ## Recorded decisions
 
