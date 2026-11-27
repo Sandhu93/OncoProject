@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 export default defineConfig([
   globalIgnores([
     '.next/**',
+    'dist/**',
     'node_modules/**',
     'out/**',
     'build/**',

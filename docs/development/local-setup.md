@@ -49,7 +49,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`check` includes formatting, lint, type checks, API and web unit tests, embedded schema checks and builds. Run `npm run format` after edits. Browser tests start production builds of the web app: one set against a stand-in API, and one set (WEB-020) against the real API on an in-memory PostgreSQL. See [web application](../architecture/web.md). Chart workflows are a future test, not an existing capability.
+`check` includes formatting, lint, type checks, API and web unit tests, embedded schema checks and builds. Run `npm run format` after edits. `npm run test:e2e` builds everything first, then runs the browser tests, which start production builds of the web app: one set against a stand-in API, and one set (WEB-020) against the real API on an in-memory PostgreSQL. See [web application](../architecture/web.md). Chart workflows are a future test, not an existing capability.
 
 ## Optional container preview
 
@@ -72,6 +72,7 @@ The initial verification downloaded Chromium into `.cache/ms-playwright`. To reu
 - Database readiness fails: verify PostgreSQL, `DATABASE_URL` and `npm run db:migrate`.
 - Database password changed after first boot: the persisted volume retains its original credentials. Do not delete data to fix a password mismatch; restore the matching local configuration or deliberately rotate credentials.
 - Migration checksum mismatch: restore the applied migration and create a new numbered migration for the change.
+- `npm run lint` reports hundreds of problems in `apps/web/dist`: that folder is left over from the old Vite shell and is no longer used. Delete `apps/web/dist` (it is ignored by git); lint now skips it as well.
 - Registry or browser download denied: use the organization's approved network/proxy; do not disable TLS validation.
 
 `docker compose stop` preserves development data. No cleanup script deletes database volumes automatically.
