@@ -707,5 +707,38 @@ export function registerSchemaTests(name, createDatabase) {
         assert.equal(row.rowCount, 1);
       });
     });
+    it('DB-029 keeps planned sessions, priority and optional references within bounds', async () => {
+      await fixture(async (client, { chart }) => {
+        const read = async () =>
+          (
+            await client.query(
+              'SELECT planned_sessions, priority, plan_id, contour_set_name, scan_reference FROM rt_charts WHERE id = $1',
+              [chart],
+            )
+          ).rows[0];
+        assert.deepEqual(await read(), {
+          planned_sessions: null,
+          priority: 'ROUTINE',
+          plan_id: null,
+          contour_set_name: null,
+          scan_reference: null,
+        });
+        await client.query(
+          "UPDATE rt_charts SET planned_sessions = 30, priority = 'URGENT', plan_id = 'PLAN-1', contour_set_name = 'Set A', scan_reference = 'CT-2' WHERE id = $1",
+          [chart],
+        );
+        assert.equal((await read()).planned_sessions, 30);
+        for (const bad of [
+          'planned_sessions = 0',
+          'planned_sessions = 101',
+          "priority = 'LOW'",
+          "plan_id = ''",
+          "plan_id = ' padded '",
+          `scan_reference = '${'x'.repeat(61)}'`,
+        ]) {
+          await refuses(client, `UPDATE rt_charts SET ${bad} WHERE id = $1`, [chart], /check/i);
+        }
+      });
+    });
   });
 }
