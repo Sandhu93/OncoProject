@@ -1,6 +1,6 @@
 // Creates one local staff account. Run on the server, by an administrator, after `npm run build`.
 //   npm run staff:create -- <username> "<Full name>" ROLE[,ROLE] [CAPABILITY[,CAPABILITY]]
-// The password is read from a hidden prompt, or from STAFF_PASSWORD for scripted setup.
+// The password is read from a hidden prompt (typed twice), or from STAFF_PASSWORD for scripted setup.
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { Writable } from 'node:stream';
@@ -50,7 +50,12 @@ for (const capability of capabilities) {
     fail(`Unknown capability: ${capability}. Use: ${CAPABILITIES.join(', ')}`);
 }
 
-const password = process.env.STAFF_PASSWORD ?? (await promptHidden('Password: '));
+let password = process.env.STAFF_PASSWORD;
+if (password === undefined) {
+  password = await promptHidden('Password: ');
+  const again = await promptHidden('Type it again: ');
+  if (password !== again) fail('The two passwords do not match. No account was created.');
+}
 const problem = checkPasswordPolicy(password);
 if (problem) fail(problem);
 const passwordHash = await hashPassword(password);
