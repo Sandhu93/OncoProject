@@ -30,11 +30,18 @@ All are open unless later documented with an owner/date and concrete answer. No 
 
 ## Progress on decisions (24 October 2026)
 
-| ID   | State                         | Detail                                                                                                                                                                                                              |
-| ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| D-01 | Proposed, awaiting consultant | The consultant's 13 steps are mapped to 14 stages and 16 transitions (plus chart creation) in [the proposed workflow](rt-workflow-proposal.md). Rows marked Assumed need confirmation. Not approved for activation. |
-| D-06 | Proposed, awaiting consultant | The consultant described weekly and Saturday updates and an update at completion, so tracking appears to continue until treatment completes. Confirm, including interruption and discontinuation.                   |
-| D-11 | Open (new)                    | Treatment updates: what each update records, who posts, Saturday deadline and grace, missed-week handling, holidays.                                                                                                |
+| ID   | State                         | Detail                                                                                                                                                                                                                                     |
+| ---- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| D-01 | Proposed, awaiting consultant | The consultant's 13 steps are mapped to 14 stages and 16 transitions (plus chart creation) in [the proposed workflow](rt-workflow-proposal.md). Rows marked Assumed need confirmation. Not approved for activation.                        |
+| D-06 | Proposed, awaiting consultant | The consultant described weekly and Saturday updates and an update at completion, so tracking appears to continue until treatment completes. Confirm, including interruption and discontinuation.                                          |
+| D-11 | Open (new)                    | Treatment updates: what each update records, who posts, Saturday deadline and grace, missed-week handling, holidays.                                                                                                                       |
+| D-03 | Partly answered (28 Nov 2026) | Staff type in the RT number; the app does not allocate it. The consultant who creates the file enters it when issuing the chart. Still open: the number format and whether a repeat course gets a new number (the schema assumes it does). |
+
+## Field decisions (28 November 2026, from the product owner)
+
+- Planned sessions and priority are kept as chart attributes. Priority stays marked "to confirm" with the consultant.
+- The optional plan ID, contour set name and scan reference are kept as optional references into the planning system. They are pointers only, never images or findings.
+- The RT number is typed in by the consultant who creates the file. The app checks that it is present and not already used, and never generates one.
 
 Take [the confirmation sheet](consultant-confirmation-sheet.md) to the consultant to close D-01, D-04, D-06, D-07 and D-11 in one session. D-02, D-03, D-05, D-08, D-09 and D-10 each need a named owner; sheet questions 9, 10 and 17 cover parts of D-02, D-03 and D-10.
 
