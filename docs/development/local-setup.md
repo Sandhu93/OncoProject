@@ -25,7 +25,7 @@ Without PostgreSQL the API's liveness works and readiness returns 503, but nobod
 npm run staff:create -- your.username "Your Name" CONSULTANT MANAGE_STAFF
 ```
 
-It asks for the password twice without showing it (12 to 128 characters). Roles are `JUNIOR_RESIDENT`, `SENIOR_RESIDENT`, `CONSULTANT`, `PHYSICIST` and `RADIOGRAPHER`; capabilities are `MANAGE_STAFF`, `CONFIGURE_WORKFLOW`, `VIEW_AUDIT` and `EXPORT_REPORTS`. Then open http://localhost:5173. Five wrong passwords lock a username for 15 minutes. If you forget or mistype a password, set a new one (this also ends that account's sessions and clears the lockout):
+It asks for the password twice without showing it (12 to 128 characters). Roles are `JUNIOR_RESIDENT`, `SENIOR_RESIDENT`, `CONSULTANT`, `PHYSICIST` and `RADIOGRAPHER`; capabilities are `MANAGE_STAFF`, `CONFIGURE_WORKFLOW`, `VIEW_AUDIT` and `EXPORT_REPORTS`. For quick trials on your own computer, `npm run staff:create-test` creates three test accounts (`test.consultant` with every capability, `test.resident`, `test.physicist`) sharing one known password, printed when the command finishes. Run again, it resets them. It refuses to run unless `DATABASE_URL` points at this computer. Then open http://localhost:5173. Five wrong passwords lock a username for 15 minutes. If you forget or mistype a password, set a new one (this also ends that account's sessions and clears the lockout):
 
 ```sh
 npm run staff:reset-password -- your.username

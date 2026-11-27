@@ -29,6 +29,7 @@
     "db:migrate": "node --env-file-if-exists=.env scripts/migrate.mjs",
     "db:seed": "node --env-file-if-exists=.env scripts/seed.mjs",
     "staff:reset-password": "npm run build -w @oncotrack/contracts && npm run build -w @oncotrack/api && node --env-file-if-exists=.env scripts/reset-staff-password.mjs",
+    "staff:create-test": "npm run build -w @oncotrack/contracts && npm run build -w @oncotrack/api && node --env-file-if-exists=.env scripts/create-test-staff.mjs",
     "staff:create": "npm run build -w @oncotrack/contracts && npm run build -w @oncotrack/api && node --env-file-if-exists=.env scripts/create-staff.mjs"
   },
   "devDependencies": {
