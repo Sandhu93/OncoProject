@@ -36,6 +36,10 @@ erDiagram
 - Resource unit bookings use half-open time ranges `[start, end)`. Reserved/confirmed bookings cannot overlap on one unit; adjacent bookings can share the end/start instant. Capacity is represented by independently bookable units.
 - History, audit, review submissions and review decisions reject UPDATE, DELETE and TRUNCATE. A database owner can disable triggers; this is not a guarantee against privileged administrators.
 
+## Added in migration 004
+
+Chart attributes approved by the product owner on 28 November 2026: `planned_sessions` (1 to 100, required by the API when a chart is issued), `priority` (`ROUTINE` or `URGENT`, default `ROUTINE`), and the optional short references `plan_id`, `contour_set_name` and `scan_reference` (1 to 60 characters, no padding). They are pointers into the planning system, never images or findings. The database cannot detect a patient name typed into them, so the interface warns staff. Test DB-029 guards the bounds.
+
 ## Added in migration 002
 
 - **RT numbering.** `allocate_number(scope)` returns the next number for a scope such as `RT:2026`, inside the caller's transaction. A rolled-back request gives its number back, so committed numbers have no gaps or duplicates. The display format (prefix, year, padding) is a department decision and is built by the API from this number.
