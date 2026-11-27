@@ -7,5 +7,5 @@
     "emitDecoratorMetadata": true,
     "noEmit": true
   },
-  "include": ["tests/**/*.ts", "vitest.config.ts", "playwright.config.ts", "apps/api/src/**/*.ts"]
+  "include": ["tests/**/*.ts", "vitest.config.ts", "apps/api/src/**/*.ts"]
 }

@@ -2,11 +2,11 @@
 
 ## Decision
 
-Use a TypeScript workspace with a React web app, NestJS modular API, PostgreSQL and a later React Native app. The intended deployment is a hospital-owned server behind an internal TLS reverse proxy. This is a single-department modular application; introduce separately deployed services only when an operational need is demonstrated.
+Use a TypeScript workspace with a Next.js web app ([how it works](web.md)), NestJS modular API, PostgreSQL and a later React Native app. The intended deployment is a hospital-owned server behind an internal TLS reverse proxy. This is a single-department modular application; introduce separately deployed services only when an operational need is demonstrated.
 
 ```mermaid
 flowchart LR
-  Web[React web] --> Proxy[Hospital HTTPS reverse proxy]
+  Web[Next.js web] --> Proxy[Hospital HTTPS reverse proxy]
   Mobile[React Native - planned] --> Proxy
   Proxy --> API[NestJS API]
   API --> DB[(PostgreSQL)]
@@ -62,6 +62,6 @@ No stage-change endpoint is exposed until this transaction service and identity 
 
 ## Tooling references
 
-Runtime selection was checked against [NestJS setup](https://docs.nestjs.com/first-steps) and [Vite setup](https://vite.dev/guide/). PostgreSQL constraints are described in the [official constraint documentation](https://www.postgresql.org/docs/current/ddl-constraints.html). Embedded tests register the documented [PGlite btree_gist extension](https://pglite.dev/extensions/).
+Runtime selection was checked against [NestJS setup](https://docs.nestjs.com/first-steps) and [Next.js documentation](https://nextjs.org/docs). PostgreSQL constraints are described in the [official constraint documentation](https://www.postgresql.org/docs/current/ddl-constraints.html). Embedded tests register the documented [PGlite btree_gist extension](https://pglite.dev/extensions/).
 
 Dependencies are captured in `package-lock.json`. The `multer` override pins 2.3.0 to address the advisory reported during installation; review whether the override remains necessary when upgrading NestJS. [Advisory](https://github.com/advisories/GHSA-wc9g-mqfw-jrwm)

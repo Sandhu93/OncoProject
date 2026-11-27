@@ -31,17 +31,17 @@ Live change: add a failing check for a new rule (for example, a note length limi
 
 ## Frontend developer (about 60 minutes)
 
-| Topic             | Open                                                       | Ask                                                                                                                                    |
-| ----------------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| Application shell | `apps/web/src/App.tsx`                                     | How does the page know the API is up? What are the three states and what does each show? Why abort the request after 5 seconds?        |
-| Honest status     | `App.tsx` (`checkService`)                                 | What counts as "Available"? What if the API answers with the wrong service name? Why does the page say staff login is not implemented? |
-| Shared types      | `packages/contracts/src/index.ts`                          | Which types will the web and the API both use? Why must the web never decide permissions itself?                                       |
-| Build and proxy   | `apps/web` Vite config, `infra/nginx.conf`                 | How does `/api` reach the API in development and in the container? What security headers does the proxy add and why?                   |
-| Browser tests     | `tests/e2e/shell.spec.ts`                                  | What do WEB-001 and WEB-002 check? Why are service responses controlled in the test? What would you add for a login screen?            |
-| Quality gates     | `.github/workflows/ci.yml`, `eslint` and `prettier` config | What runs on every push? What does a red CI mean for merging?                                                                          |
-| Roles and screens | `docs/product/rt-workflow-proposal.md`                     | For the Radiographer, list the actions and the chart stages they appear in. Which screens does that suggest?                           |
+| Topic             | Open                                                               | Ask                                                                                                                                     |
+| ----------------- | ------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| Sign-in           | `apps/web/app/login/actions.ts`, `services/app/session.service.ts` | What happens to the token after the API returns it? Why is it `httpOnly`? Why does the action return errors instead of throwing?        |
+| Who is signed in  | `apps/web/app/dashboard/page.tsx`, `services/api/staff.service.ts` | Where do roles come from? Why is there no way to choose a role in the browser?                                                          |
+| Shared types      | `packages/contracts/src/index.ts`                                  | Which types will the web and the API both use? Why must the web never decide permissions itself?                                        |
+| Server calls only | `apps/web/services/api/base.service.ts`, `proxy.ts`                | Why does the browser never call the API? What happens on a 401? How does `proxy.ts` decide who is logged in, and what does it not know? |
+| Browser tests     | `apps/web/e2e/`                                                    | What is the difference between the `chromium` and `real-api` projects? What could the stand-in API hide that the real one would catch?  |
+| Quality gates     | `.github/workflows/ci.yml`, `eslint` and `prettier` config         | What runs on every push? What does a red CI mean for merging?                                                                           |
+| Roles and screens | `docs/product/rt-workflow-proposal.md`                             | For the Radiographer, list the actions and the chart stages they appear in. Which screens does that suggest?                            |
 
-Live change: change a label on the home screen, run the browser tests, and fix whichever test now fails for the right reason.
+Live change: change a label on the login screen, run the browser tests, and fix whichever test now fails for the right reason.
 
 ## Both developers
 

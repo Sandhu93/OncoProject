@@ -31,6 +31,9 @@ Verification in a Linux sandbox: embedded database suite 18 of 18 passed; ESLint
 - Staff sign-in: `POST /auth/login`, `POST /auth/logout`, `GET /auth/me`. scrypt password hashes, opaque session tokens stored only as SHA-256, five failures lock a name for 15 minutes, deactivated users lose their sessions immediately, sign-in and sign-out are audited. The guard checks the database on every request and answers 503 if it cannot.
 - `npm run staff:create` provisions a local account on the server (hidden password prompt). Provisioning screens and endpoints (MANAGE_STAFF) come later.
 - Tests AUTH-001 and AUTH-002 run against the real migrations in an embedded PostgreSQL.
+- The web app is now Next.js (from the department's login template, REST-auth mode): login page, protected dashboard showing the account's name, roles and capabilities, logout that revokes the session on the API, redirect back after login. The browser never calls the API; roles come only from the API, and there is no role switcher. See [web application](../architecture/web.md). Supabase, encryption helpers, Redux, the sample projects module and external fonts were removed.
+- Browser tests: 17 against a stand-in API and 7 (WEB-020) against the real API on an in-memory PostgreSQL. 256 web unit tests.
+- Known gaps: no chart screens yet, no account provisioning screens, no refresh tokens (sessions last 12 hours), the template's refresh code is switched off. `npm audit` reports transitive findings (`proxy-addr` in the API's Express, `source-map-js` in PostCSS) that predate this change and are not yet resolved.
 
 ## Still to implement
 

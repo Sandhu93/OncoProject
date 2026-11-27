@@ -51,9 +51,11 @@ services:
     build:
       context: .
       dockerfile: infra/web.Dockerfile
+    environment:
+      API_URL: http://api:3000/api/v1
     depends_on: [api]
     ports:
-      - '127.0.0.1:8080:80'
+      - '127.0.0.1:8080:5173'
 
 volumes:
   postgres-data:

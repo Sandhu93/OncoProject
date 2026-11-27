@@ -8,3 +8,6 @@ docs/planning/project-assessment.md
 database/**/*.sql
 playwright-report
 test-results
+.next
+next-env.d.ts
+*.tsbuildinfo

@@ -1,0 +1,74 @@
+import { type NextRequest, NextResponse } from 'next/server';
+
+import AuthService from '@/services/api/auth.service';
+import { getRefreshToken } from '@/services/app/session.service';
+
+import { COOKIE_NAMES } from '@/constants/cookie';
+import { LOGIN_ROUTE } from '@/constants/routes';
+
+import { fullPageLoad, isClientNavigation } from '../client-navigation';
+
+/**
+ * True when the request was started by another site (a link, image or form on evil.example).
+ * Browsers set `Sec-Fetch-Site`; `none` means the user typed the URL or used a bookmark. Requests
+ * without the header (old browsers, curl) are allowed, since they can't come from another site's page.
+ */
+const isCrossSite = (request: NextRequest): boolean => {
+  const site = request.headers.get('sec-fetch-site');
+
+  return site !== null && site !== 'same-origin' && site !== 'none';
+};
+
+/**
+ * Deletes the auth cookies and redirects: to `/login`, with `?redirect=…` when a page to return to was given.
+ * Requests from other sites are redirected without deleting anything, so another site can't log
+ * users out by embedding this URL.
+ */
+const endSession = (request: NextRequest, status: 303 | 307): NextResponse => {
+  const url = new URL(request.url);
+  const redirectParam = url.searchParams.get('redirect');
+  const redirectUrl = new URL(LOGIN_ROUTE, url.origin);
+
+  if (redirectParam) {
+    redirectUrl.searchParams.set('redirect', redirectParam);
+  }
+
+  const res = NextResponse.redirect(redirectUrl, status);
+
+  if (isCrossSite(request)) {
+    return res;
+  }
+
+  Object.values(COOKIE_NAMES).forEach(name => {
+    res.cookies.delete(name);
+  });
+
+  return res;
+};
+
+/** Used by `handleRequest` when the API rejects the token. */
+export async function GET(request: NextRequest) {
+  // Reached by a client-side navigation: end the session during the full page load that follows.
+  if (isClientNavigation(request)) {
+    return fullPageLoad();
+  }
+
+  return endSession(request, 307);
+}
+
+/**
+ * For logout buttons: `<form method="post" action="/api/auth/clear">`. Revokes the token on the API
+ * first (see `AuthService.logout`); the cookies are deleted even when that fails, so logout always works.
+ */
+export async function POST(request: NextRequest) {
+  if (!isCrossSite(request) && request.cookies.has(COOKIE_NAMES.ACCESS_TOKEN)) {
+    try {
+      await AuthService.logout(await getRefreshToken());
+    } catch (error) {
+      console.error('Revoking the token on the API failed:', error);
+    }
+  }
+
+  // 303 turns the POST into a GET of the redirect target.
+  return endSession(request, 303);
+}

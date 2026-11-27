@@ -48,14 +48,14 @@ The [original planning documents](docs/archive/initial-planning/README.md) are a
 
 ```text
 apps/api/             NestJS API and fail-closed access boundary
-apps/web/             React development shell
+apps/web/             Next.js web app (staff login; REST auth against the API)
 apps/mobile/          Mobile implementation contract (native setup is a later milestone)
 packages/contracts/   Shared roles, safe API shapes and workflow policy
 database/migrations/  Ordered, checksummed PostgreSQL migrations
 database/seeds/       Development-only draft workflow, no patient records or passwords
 scripts/              Cross-platform setup and database tooling
 tests/                API, database, policy and browser verification
-infra/                Docker build and reverse proxy configuration
+infra/                Docker build recipes
 docs/                 Documentation index and current guidance
 docs/planning/        Assessment and delivery planning
 docs/archive/         Historical source documents; not implementation specifications

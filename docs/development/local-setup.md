@@ -2,7 +2,7 @@
 
 ## Requirements
 
-Node.js 22.14+ on the 22.x line (or a supported newer LTS), npm 10+, Git, and Docker with Linux containers for the server database. Windows PowerShell may block the `npm.ps1` shim: use `npm.cmd`, without changing system execution policy.
+Node.js 22.22.2+ on the 22.x line (or Node 24.15+), as the Next.js web app requires, npm 10+, Git, and Docker with Linux containers for the server database. Windows PowerShell may block the `npm.ps1` shim: use `npm.cmd`, without changing system execution policy.
 
 ## Start
 
@@ -17,9 +17,15 @@ npm run db:seed
 npm run dev
 ```
 
-The setup command creates `.env` once with random local credentials; rerunning it preserves existing values. The web uses port 5173 and proxies `/api` to port 3000. PostgreSQL uses port 5432. Keep these ports available or update both ends of the corresponding configuration. Changing `API_PORT` requires changing `API_PROXY_TARGET` for Vite as well.
+The setup command creates `.env` once with random local credentials, and `apps/web/.env.local` with the API address; rerunning it preserves existing values. The web uses port 5173 and its server calls the API on port 3000 (`API_URL` in `apps/web/.env.local`; the browser never calls the API). PostgreSQL uses port 5432. Keep these ports available or update both ends of the corresponding configuration. Changing `API_PORT` requires changing `API_URL` too.
 
-The API and web can run without PostgreSQL for shell development: liveness works, readiness returns 503, and the web truthfully shows that the database is unavailable. There are no login credentials because authentication is not implemented and no accounts are seeded.
+Without PostgreSQL the API's liveness works and readiness returns 503, but nobody can log in. No accounts are seeded. Create the first account on the server, after migrations:
+
+```sh
+npm run staff:create -- your.username "Your Name" CONSULTANT MANAGE_STAFF
+```
+
+It asks for the password without showing it (12 to 128 characters). Roles are `JUNIOR_RESIDENT`, `SENIOR_RESIDENT`, `CONSULTANT`, `PHYSICIST` and `RADIOGRAPHER`; capabilities are `MANAGE_STAFF`, `CONFIGURE_WORKFLOW`, `VIEW_AUDIT` and `EXPORT_REPORTS`. Then open http://localhost:5173. Five wrong passwords lock a username for 15 minutes.
 
 ## Database tests
 
@@ -39,7 +45,7 @@ npx playwright install chromium
 npm run test:e2e
 ```
 
-`check` includes formatting, lint, type checks, unit/API tests, embedded schema checks and builds. Run `npm run format` after edits. Browser tests start the web server and mock only service health responses; API route behavior is verified separately. A full patient journey is a future test, not an existing capability.
+`check` includes formatting, lint, type checks, API and web unit tests, embedded schema checks and builds. Run `npm run format` after edits. Browser tests start production builds of the web app: one set against a stand-in API, and one set (WEB-020) against the real API on an in-memory PostgreSQL. See [web application](../architecture/web.md). Chart workflows are a future test, not an existing capability.
 
 ## Optional container preview
 
@@ -49,7 +55,7 @@ After host-side migrations:
 docker compose --profile app up --build -d
 ```
 
-Browse http://localhost:8080. Stop the host API first to free port 3000. The app containers do not run migrations automatically. This prevents replicas/startup from silently changing schema. This localhost HTTP preview does not provide production TLS.
+Browse http://localhost:8080 (the web container listens on 5173 inside). Stop the host API first to free port 3000. The app containers do not run migrations automatically. This prevents replicas/startup from silently changing schema. This localhost HTTP preview does not provide production TLS.
 
 To return from the container preview to host hot reload, run `docker compose --profile app stop api web`, then `npm run dev`. Leave `db` running. To stop only the disposable test database, use `docker compose --profile test stop db-test`.
 
