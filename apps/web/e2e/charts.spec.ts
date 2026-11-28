@@ -292,8 +292,10 @@ test.describe('WEB-060 the queue and the overview', () => {
 
     await expect(mine.getByRole('listitem').first()).toContainText('SEED-001');
     await expect(mine.getByRole('listitem').first()).toContainText('Urgent');
-    await expect(mine.getByRole('link', { name: 'STEP-1' })).toBeVisible();
+    await expect(mine.getByRole('link', { name: 'Open STEP-1' })).toBeVisible();
     await expect(mine.getByText('Give mould and CT Sim dates').first()).toBeVisible();
+
+    await page.getByText(/Everyone else.s charts/).click();
 
     const others = page.getByRole('table', { name: 'Charts waiting on other people' });
 
@@ -369,11 +371,29 @@ test.describe('WEB-080 calendar, Saturday updates and stages', () => {
     for (const [name, url] of [
       ['Calendar', '/calendar'],
       ['Saturday updates', '/saturday'],
-      ['Stages', '/stages'],
     ] as const) {
       await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true }).click();
       await expect(page).toHaveURL(url);
     }
+  });
+
+  test('on a phone the links fold into a menu button and nothing runs off the screen', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 800 });
+    await page.goto('/dashboard');
+
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0);
+
+    const button = page.getByRole('button', { name: 'Menu' });
+
+    await expect(button).toHaveAttribute('aria-expanded', 'false');
+    await button.click();
+    await expect(button).toHaveAttribute('aria-expanded', 'true');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Calendar', exact: true }).click();
+    await expect(page).toHaveURL('/calendar');
+
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+
+    expect(overflow).toBeLessThanOrEqual(0);
   });
 
   test('a logged-out visitor is sent to log in', async ({ page, context }) => {
@@ -545,22 +565,29 @@ test.describe('WEB-093 reports', () => {
 });
 
 test.describe('WEB-090 staff, workflow and audit', () => {
-  test('the nav shows Staff and Audit only to those who hold them', async ({ context, baseURL, page }) => {
+  test('the account menu shows Staff and Audit trail only to those who hold them', async ({
+    context,
+    baseURL,
+    page,
+  }) => {
     await signIn(context, baseURL!);
     await page.goto('/charts');
+    await page.getByRole('button', { name: /^Account menu/ }).click();
 
-    const nav = page.getByRole('navigation', { name: 'Main' });
+    const more = page.getByRole('navigation', { name: 'More pages' });
 
-    await expect(nav.getByRole('link', { name: 'Staff', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Audit', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Workflow', exact: true })).toBeVisible();
+    await expect(more.getByRole('link', { name: 'Staff', exact: true })).toBeVisible();
+    await expect(more.getByRole('link', { name: 'Audit trail', exact: true })).toBeVisible();
+    await expect(more.getByRole('link', { name: 'Workflow', exact: true })).toBeVisible();
+    await expect(more.getByRole('link', { name: 'Stages', exact: true })).toBeVisible();
 
     await context.clearCookies();
     await signIn(context, baseURL!, 'resident-token');
     await page.goto('/charts');
-    await expect(nav.getByRole('link', { name: 'Workflow', exact: true })).toBeVisible();
-    await expect(nav.getByRole('link', { name: 'Staff', exact: true })).toHaveCount(0);
-    await expect(nav.getByRole('link', { name: 'Audit', exact: true })).toHaveCount(0);
+    await page.getByRole('button', { name: /^Account menu/ }).click();
+    await expect(more.getByRole('link', { name: 'Workflow', exact: true })).toBeVisible();
+    await expect(more.getByRole('link', { name: 'Staff', exact: true })).toHaveCount(0);
+    await expect(more.getByRole('link', { name: 'Audit trail', exact: true })).toHaveCount(0);
   });
 
   test('someone without the permission is told so and sees no accounts', async ({ context, baseURL, page }) => {
@@ -682,11 +709,7 @@ test.describe('WEB-090 staff, workflow and audit', () => {
     await expect(trail.getByRole('listitem')).toHaveCount(4);
     await expect(trail.getByRole('listitem').first()).toContainText('Staff created');
 
-    await page
-      .getByRole('searchbox')
-      .or(page.getByRole('textbox', { name: 'RT number' }))
-      .first()
-      .fill('seed-002');
+    await page.getByRole('main').getByLabel('RT number').fill('seed-002');
     await page.getByRole('button', { name: 'Search' }).click();
 
     await expect(page).toHaveURL(/\/audit\?rt=seed-002/);

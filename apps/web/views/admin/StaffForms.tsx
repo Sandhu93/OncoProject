@@ -8,10 +8,9 @@ import { CAPABILITY_LABELS, ROLE_LABELS } from '@/utils/labels';
 
 import { createStaff, deleteStaff, setStaffPassword, type StaffFormState, updateStaff } from '@/app/staff/actions';
 
-const INPUT =
-  'rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900';
+const INPUT = 'min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600';
 const BUTTON =
-  'self-start rounded-md bg-zinc-900 px-4 py-2 text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900';
+  'self-start min-h-11 rounded-[10px] bg-brand px-5 py-2 text-brand-ink disabled:opacity-60 hover:opacity-90';
 
 const first = (errors: Record<string, string[]> | undefined, field: string) => errors?.[field]?.[0];
 
@@ -151,9 +150,7 @@ export function CreateStaffForm({ directoryEnabled }: { directoryEnabled: boolea
           <label htmlFor="new-password" className="text-sm font-medium">
             First password
           </label>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            At least 12 characters. Tell the person in person, not in a message.
-          </p>
+          <p className="text-sm text-muted">At least 12 characters. Tell the person in person, not in a message.</p>
           <input
             id="new-password"
             name="password"
@@ -232,7 +229,7 @@ export function EditStaffForm({ member, isYou }: { member: StaffMember; isYou: b
       <label className="flex items-center gap-2 text-sm">
         <input type="checkbox" name="isActive" defaultChecked={member.isActive} disabled={isYou} />
         Can sign in
-        {isYou && <span className="text-zinc-600 dark:text-zinc-400">(you cannot switch off your own account)</span>}
+        {isYou && <span className="text-muted">(you cannot switch off your own account)</span>}
       </label>
       {/* A disabled box is not sent, so an unchangeable "on" is sent as a hidden value. */}
       {isYou && <input type="hidden" name="isActive" value="on" />}
@@ -269,7 +266,7 @@ export function PasswordForm({ member }: { member: StaffMember }) {
         <label htmlFor={id} className="text-sm font-medium">
           New password
         </label>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-muted">
           At least 12 characters. They are signed out everywhere and any lock on their account is cleared.
         </p>
         <input

@@ -19,7 +19,7 @@ export default function WorkflowView({ workflow }: { workflow: Workflow | null }
           ? `Approved${workflow.approvedBy ? ` by ${workflow.approvedBy}` : ''} on ${formatDateTime(workflow.approvedAt)}.`
           : 'Not yet approved.'}
       </p>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-sm text-muted">
         This is the workflow in use. It can only be changed by approving a new version, so charts already in progress
         keep the steps they started with.
       </p>
@@ -30,7 +30,7 @@ export default function WorkflowView({ workflow }: { workflow: Workflow | null }
             <h2 className="text-base font-semibold">
               {stage.position}. {stage.label}
             </h2>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-muted">
               {[
                 stage.phase,
                 stage.isInitial ? 'Where every chart starts' : null,

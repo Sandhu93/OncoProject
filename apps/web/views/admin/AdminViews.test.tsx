@@ -1,5 +1,5 @@
 import type { AuditList, StaffMember, WorkflowView as Workflow } from '@oncotrack/contracts';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
@@ -35,20 +35,33 @@ const member = (change: Partial<StaffMember>): StaffMember => ({
 });
 
 describe('AppHeader permissions', () => {
-  it('shows Workflow to everyone, and Staff and Audit only to those who hold them', () => {
+  /** The less common pages sit under the account button until it is pressed. */
+  const openAccountMenu = () => fireEvent.click(screen.getByRole('button', { name: /^Account menu/ }));
+
+  it('shows Workflow to everyone, and Staff and Audit trail only to those who hold them', () => {
     const { rerender } = render(<AppHeader current="charts" fullName="Dr Rao" />);
 
+    openAccountMenu();
     expect(screen.getByRole('link', { name: 'Workflow' })).toBeInTheDocument();
     expect(screen.queryByRole('link', { name: 'Staff' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: 'Audit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Audit trail' })).not.toBeInTheDocument();
 
     rerender(<AppHeader current="staff" fullName="Dr Rao" capabilities={['MANAGE_STAFF']} />);
     expect(screen.getByRole('link', { name: 'Staff' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.queryByRole('link', { name: 'Audit' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('link', { name: 'Audit trail' })).not.toBeInTheDocument();
 
     rerender(<AppHeader current="audit" fullName="Dr Rao" capabilities={['VIEW_AUDIT']} />);
-    expect(screen.getByRole('link', { name: 'Audit' })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('link', { name: 'Audit trail' })).toHaveAttribute('aria-current', 'page');
     expect(screen.queryByRole('link', { name: 'Staff' })).not.toBeInTheDocument();
+  });
+
+  it('shows Reports in the bar only to those who may export', () => {
+    const { rerender } = render(<AppHeader current="charts" fullName="Dr Rao" />);
+
+    expect(screen.queryByRole('link', { name: 'Reports' })).not.toBeInTheDocument();
+
+    rerender(<AppHeader current="reports" fullName="Dr Rao" capabilities={['EXPORT_REPORTS']} />);
+    expect(screen.getByRole('link', { name: 'Reports' })).toHaveAttribute('aria-current', 'page');
   });
 });
 

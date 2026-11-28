@@ -8,10 +8,9 @@ import { ROLE_LABELS } from '@/utils/labels';
 
 import { approveDraft, discardDraft, saveDraft, startDraft, type WorkflowFormState } from '@/app/workflow/edit/actions';
 
-const INPUT =
-  'rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900';
+const INPUT = 'min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600';
 const BUTTON =
-  'self-start rounded-md bg-zinc-900 px-4 py-2 text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900';
+  'self-start min-h-11 rounded-[10px] bg-brand px-5 py-2 text-brand-ink disabled:opacity-60 hover:opacity-90';
 const SECONDARY = 'self-start rounded-md border border-zinc-400 px-4 py-2 disabled:opacity-60 dark:border-zinc-600';
 
 function Messages({ state }: { state: WorkflowFormState }) {
@@ -62,7 +61,7 @@ export default function WorkflowEditor({ draft }: { draft: WorkflowDraft }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-sm text-muted">
         Draft version {draft.version}, to replace version {draft.replacesVersion}. Charts already running finish on the
         version they started with. Charts issued after you approve this start on it.
       </p>

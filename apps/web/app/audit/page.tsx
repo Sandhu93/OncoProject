@@ -56,25 +56,26 @@ export default async function AuditPage({ searchParams }: { searchParams: Search
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="audit" fullName={staff.fullName} capabilities={staff.capabilities} />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <h1 className="text-2xl font-semibold">Audit trail</h1>
 
-      <h1 className="text-2xl font-semibold">Audit trail</h1>
-
-      {list ? (
-        <>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Every change is recorded here with who made it and when. Entries cannot be edited or removed.
-          </p>
-          <AuditFilterForm filters={filters} actions={list.actions} />
-          <AuditView list={list} />
-          {list.total > 0 && (
-            <Pagination page={page} pageSize={PAGE_SIZE} total={list.total} hrefForPage={hrefForPage} />
-          )}
-        </>
-      ) : (
-        <NoAccess what="read the audit trail" />
-      )}
-    </main>
+        {list ? (
+          <>
+            <p className="text-sm text-muted">
+              Every change is recorded here with who made it and when. Entries cannot be edited or removed.
+            </p>
+            <AuditFilterForm filters={filters} actions={list.actions} />
+            <AuditView list={list} />
+            {list.total > 0 && (
+              <Pagination page={page} pageSize={PAGE_SIZE} total={list.total} hrefForPage={hrefForPage} />
+            )}
+          </>
+        ) : (
+          <NoAccess what="read the audit trail" />
+        )}
+      </main>
+    </>
   );
 }

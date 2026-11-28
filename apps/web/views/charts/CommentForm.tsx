@@ -8,8 +8,7 @@ import { ROLE_LABELS } from '@/utils/labels';
 
 import { type CommentState, postComment } from '@/app/charts/[rtNumber]/comment-actions';
 
-const INPUT =
-  'rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900';
+const INPUT = 'min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600';
 
 /** Write a comment on the chart, optionally for one role, who is then told. */
 export default function CommentForm({ rtNumber }: { rtNumber: string }) {
@@ -30,7 +29,7 @@ export default function CommentForm({ rtNumber }: { rtNumber: string }) {
         <label htmlFor="comment-body" className="text-sm font-medium">
           Comment
         </label>
-        <p id="comment-body-hint" className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p id="comment-body-hint" className="text-sm text-muted">
           Operational notes only: no patient names or clinical details.
         </p>
         <textarea
@@ -54,9 +53,9 @@ export default function CommentForm({ rtNumber }: { rtNumber: string }) {
 
       <div className="flex flex-col gap-1">
         <label htmlFor="comment-for" className="text-sm font-medium">
-          For <span className="font-normal text-zinc-600 dark:text-zinc-400">(optional)</span>
+          For <span className="font-normal text-muted">(optional)</span>
         </label>
-        <p id="comment-for-hint" className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p id="comment-for-hint" className="text-sm text-muted">
           That role is told. If you choose no one, whoever the chart is waiting for is told.
         </p>
         <select
@@ -91,7 +90,7 @@ export default function CommentForm({ rtNumber }: { rtNumber: string }) {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-zinc-900 px-4 py-2 text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+        className="self-start min-h-11 rounded-[10px] bg-brand px-5 py-2 text-brand-ink disabled:opacity-60 hover:opacity-90"
       >
         {pending ? 'Adding…' : 'Add comment'}
       </button>

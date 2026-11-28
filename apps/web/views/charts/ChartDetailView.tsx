@@ -39,7 +39,7 @@ const actionLabel = (action: string) => ACTION_LABELS[action] ?? action.replaceA
 function Fact({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <dt className="text-sm text-zinc-600 dark:text-zinc-400">{label}</dt>
+      <dt className="text-sm text-muted">{label}</dt>
       <dd className="font-medium">{children}</dd>
     </div>
   );
@@ -55,7 +55,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           ← All charts
         </Link>
         <h1 className="font-mono text-2xl font-semibold">{chart.rtNumber}</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-muted">
           {chart.stage.label} for {formatDuration(chart.minutesInStage)}
           {chart.phase && ` · ${chart.phase}`}
           {chart.status !== 'OPEN' && ` · ${chart.status === 'CLOSED' ? 'closed' : 'discontinued'}`}
@@ -87,7 +87,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           <ActionForm key={action.action} rtNumber={chart.rtNumber} version={chart.version} action={action} />
         ))}
         {chart.availableActions.length === 0 && chart.ownerRole && (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">This step is not yours to take.</p>
+          <p className="text-sm text-muted">This step is not yours to take.</p>
         )}
       </section>
 
@@ -96,7 +96,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           <h2 id="controls" className="text-lg font-medium">
             Consultant controls
           </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-muted">
             For putting right what went wrong. Each one needs a reason, is kept in the history, and tells the people it
             affects.
           </p>
@@ -149,7 +149,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           Discussion
         </h2>
         {chart.comments.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">No comments yet.</p>
+          <p className="text-sm text-muted">No comments yet.</p>
         ) : (
           <ol aria-label="Comments, oldest first" className="flex flex-col gap-3">
             {chart.comments.map(comment => (
@@ -158,8 +158,8 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
                 className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
                 data-kind={comment.kind}
               >
-                <p className="text-sm text-zinc-600 dark:text-zinc-400">
-                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{comment.authorName}</span> (
+                <p className="text-sm text-muted">
+                  <span className="font-medium text-foreground">{comment.authorName}</span> (
                   {comment.authorRoles.map(role => ROLE_LABELS[role]).join(', ')}) · {formatDateTime(comment.createdAt)}{' '}
                   · at {comment.stageLabel}
                   {comment.kind === 'HANDOFF' && ' · note when passing the chart on'}
@@ -177,47 +177,47 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         <h2 id="history" className="text-lg font-medium">
           History
         </h2>
-        <table className="w-full border-collapse text-left">
-          <caption className="sr-only">Everything that has happened to this chart, oldest first</caption>
-          <thead>
-            <tr className="border-b border-zinc-300 text-sm dark:border-zinc-700">
-              <th scope="col" className="py-2 pr-4 font-medium">
-                When
-              </th>
-              <th scope="col" className="py-2 pr-4 font-medium">
-                What
-              </th>
-              <th scope="col" className="py-2 pr-4 font-medium">
-                Stage
-              </th>
-              <th scope="col" className="py-2 font-medium">
-                By
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {chart.history.map(entry => (
-              <tr key={`${entry.occurredAt}-${entry.action}`} className="border-b border-zinc-200 dark:border-zinc-800">
-                <td className="py-2 pr-4">{formatDateTime(entry.occurredAt)}</td>
-                <td className="py-2 pr-4">
-                  {actionLabel(entry.action)}
-                  {entry.summary && (
-                    <span className="block text-sm text-zinc-600 dark:text-zinc-400">{entry.summary}</span>
-                  )}
-                  {entry.reason && !entry.summary?.includes(entry.reason) && (
-                    <span className="block text-sm text-zinc-600 dark:text-zinc-400">Reason: {entry.reason}</span>
-                  )}
-                </td>
-                <td className="py-2 pr-4">
-                  {entry.fromStageLabel && entry.fromStage !== entry.toStage
-                    ? `${entry.fromStageLabel} → ${entry.toStageLabel}`
-                    : entry.toStageLabel}
-                </td>
-                <td className="py-2">{entry.actorName}</td>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[30rem] border-collapse text-left">
+            <caption className="sr-only">Everything that has happened to this chart, oldest first</caption>
+            <thead>
+              <tr className="border-b border-zinc-300 text-sm dark:border-zinc-700">
+                <th scope="col" className="py-2 pr-4 font-medium">
+                  When
+                </th>
+                <th scope="col" className="py-2 pr-4 font-medium">
+                  What
+                </th>
+                <th scope="col" className="py-2 pr-4 font-medium">
+                  Stage
+                </th>
+                <th scope="col" className="py-2 font-medium">
+                  By
+                </th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {chart.history.map(entry => (
+                <tr key={`${entry.occurredAt}-${entry.action}`} className="border-b border-line">
+                  <td className="py-2 pr-4">{formatDateTime(entry.occurredAt)}</td>
+                  <td className="py-2 pr-4">
+                    {actionLabel(entry.action)}
+                    {entry.summary && <span className="block text-sm text-muted">{entry.summary}</span>}
+                    {entry.reason && !entry.summary?.includes(entry.reason) && (
+                      <span className="block text-sm text-muted">Reason: {entry.reason}</span>
+                    )}
+                  </td>
+                  <td className="py-2 pr-4">
+                    {entry.fromStageLabel && entry.fromStage !== entry.toStage
+                      ? `${entry.fromStageLabel} → ${entry.toStageLabel}`
+                      : entry.toStageLabel}
+                  </td>
+                  <td className="py-2">{entry.actorName}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </section>
     </article>
   );

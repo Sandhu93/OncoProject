@@ -42,12 +42,26 @@ export default function NotificationBell({
     <Link
       href="/notifications"
       aria-current={current ? 'page' : undefined}
-      className="underline-offset-4 hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline"
+      className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg text-foreground hover:bg-brand-soft aria-[current=page]:bg-brand-soft"
     >
-      Inbox
+      <svg
+        width="22"
+        height="22"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="M6 9a6 6 0 1 1 12 0c0 6 2 7 2 7H4s2-1 2-7" />
+        <path d="M10 20a2 2 0 0 0 4 0" />
+      </svg>
+      <span className="sr-only">Inbox</span>
       {unread ? (
         <span
-          className="ml-1 rounded-full bg-red-700 px-2 py-0.5 text-xs font-semibold text-white"
+          className="absolute right-1 top-1 min-w-[1.125rem] rounded-full bg-danger px-1 text-center text-xs font-bold leading-[1.125rem] text-white"
           aria-label={`${unread} unread`}
         >
           {unread}

@@ -21,7 +21,7 @@ export const actionLabel = (action: string): string => {
   return words.charAt(0).toUpperCase() + words.slice(1);
 };
 
-const INPUT = 'rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900';
+const INPUT = 'min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base';
 
 /** A plain GET form, so a filtered view can be bookmarked or shared. */
 export function AuditFilterForm({ filters, actions }: { filters: AuditFilters; actions: readonly string[] }) {
@@ -73,7 +73,7 @@ export function AuditFilterForm({ filters, actions }: { filters: AuditFilters; a
       </div>
       <button
         type="submit"
-        className="rounded-md bg-zinc-900 px-4 py-2 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+        className="min-h-11 rounded-[10px] bg-brand px-5 py-2 font-medium text-brand-ink hover:opacity-90"
       >
         Search
       </button>
@@ -101,11 +101,9 @@ export default function AuditView({ list }: { list: AuditList }) {
                   {entry.rtNumber}
                 </Link>
               )}
-              <span className="ml-auto text-sm text-zinc-600 dark:text-zinc-400">
-                {formatDateTime(entry.occurredAt)}
-              </span>
+              <span className="ml-auto text-sm text-muted">{formatDateTime(entry.occurredAt)}</span>
             </div>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-muted">
               {entry.actorName ?? 'The system'}
               {entry.actorRoles.length > 0 && ` (${entry.actorRoles.join(', ').toLowerCase().replaceAll('_', ' ')})`}
               {' · '}

@@ -20,16 +20,17 @@ export default async function StaffPage() {
     : { items: [], directoryEnabled: false };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="staff" fullName={staff.fullName} capabilities={staff.capabilities} />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <h1 className="text-2xl font-semibold">Staff</h1>
 
-      <h1 className="text-2xl font-semibold">Staff</h1>
-
-      {allowed ? (
-        <StaffView members={members} youId={staff.id} directoryEnabled={directoryEnabled} />
-      ) : (
-        <NoAccess what="manage staff accounts" />
-      )}
-    </main>
+        {allowed ? (
+          <StaffView members={members} youId={staff.id} directoryEnabled={directoryEnabled} />
+        ) : (
+          <NoAccess what="manage staff accounts" />
+        )}
+      </main>
+    </>
   );
 }

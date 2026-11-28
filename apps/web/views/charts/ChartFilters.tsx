@@ -25,7 +25,7 @@ export default function ChartFilters({ q, status }: ChartFiltersProps) {
           defaultValue={q}
           autoComplete="off"
           maxLength={40}
-          className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          className="min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base"
         />
       </div>
       <div className="flex flex-col gap-1">
@@ -36,7 +36,7 @@ export default function ChartFilters({ q, status }: ChartFiltersProps) {
           id="status"
           name="status"
           defaultValue={status}
-          className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          className="min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base"
         >
           {STATUS_OPTIONS.map(option => (
             <option key={option.value} value={option.value}>
@@ -47,7 +47,7 @@ export default function ChartFilters({ q, status }: ChartFiltersProps) {
       </div>
       <button
         type="submit"
-        className="rounded-md bg-zinc-900 px-4 py-2 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
+        className="min-h-11 rounded-[10px] bg-brand px-5 py-2 font-medium text-brand-ink hover:opacity-90"
       >
         Search
       </button>

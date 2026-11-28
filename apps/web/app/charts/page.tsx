@@ -49,36 +49,37 @@ export default async function ChartsPage({ searchParams }: { searchParams: Searc
   };
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="charts" fullName={staff.fullName} capabilities={staff.capabilities} />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <h1 className="text-2xl font-semibold">Charts</h1>
+          {staff.roles.includes('CONSULTANT') && (
+            <Link
+              href="/charts/new"
+              className="min-h-11 rounded-[10px] bg-brand px-5 py-2 font-medium text-brand-ink hover:opacity-90"
+            >
+              Issue a chart
+            </Link>
+          )}
+        </div>
 
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-2xl font-semibold">Charts</h1>
-        {staff.roles.includes('CONSULTANT') && (
-          <Link
-            href="/charts/new"
-            className="rounded-md bg-zinc-900 px-4 py-2 font-medium text-white dark:bg-zinc-100 dark:text-zinc-900"
-          >
-            Issue a chart
-          </Link>
+        <ChartFilters q={q} status={status} />
+
+        {charts.items.length === 0 ? (
+          <p role="status">{q || status !== 'OPEN' ? 'No charts match this search.' : 'No charts yet.'}</p>
+        ) : (
+          <>
+            <ChartTable charts={charts.items} />
+            <Pagination page={page} pageSize={PAGE_SIZE} total={charts.total} hrefForPage={hrefForPage} />
+          </>
         )}
-      </div>
 
-      <ChartFilters q={q} status={status} />
-
-      {charts.items.length === 0 ? (
-        <p role="status">{q || status !== 'OPEN' ? 'No charts match this search.' : 'No charts yet.'}</p>
-      ) : (
-        <>
-          <ChartTable charts={charts.items} />
-          <Pagination page={page} pageSize={PAGE_SIZE} total={charts.total} hrefForPage={hrefForPage} />
-        </>
-      )}
-
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
-        OncoTrack holds no patient names or other patient information. Find the patient in the hospital&apos;s own
-        records using the RT number.
-      </p>
-    </main>
+        <p className="text-sm text-muted">
+          OncoTrack holds no patient names or other patient information. Find the patient in the hospital&apos;s own
+          records using the RT number.
+        </p>
+      </main>
+    </>
   );
 }

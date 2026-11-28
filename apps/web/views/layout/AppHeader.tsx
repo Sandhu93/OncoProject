@@ -1,67 +1,72 @@
-import Link from 'next/link';
-
 import type { StaffCapability } from '@oncotrack/contracts';
 
 import NotificationBell from './NotificationBell';
+import SiteMenu, { type MenuLink } from './SiteMenu';
+
+export type NavKey =
+  | 'dashboard'
+  | 'overview'
+  | 'calendar'
+  | 'saturday'
+  | 'stages'
+  | 'charts'
+  | 'workflow'
+  | 'staff'
+  | 'audit'
+  | 'reports'
+  | 'notifications';
 
 interface AppHeaderProps {
   /** The page the user is on, so its link can be marked as current. */
-  current:
-    | 'dashboard'
-    | 'overview'
-    | 'calendar'
-    | 'saturday'
-    | 'stages'
-    | 'charts'
-    | 'workflow'
-    | 'staff'
-    | 'audit'
-    | 'reports'
-    | 'notifications';
+  current: NavKey;
   fullName: string;
   /** What the person may do beyond their role. Staff, Reports and Audit show only to those who hold them. */
   capabilities?: readonly StaffCapability[];
 }
 
-const NAV = [
-  { key: 'dashboard', href: '/dashboard', label: 'Dashboard' },
-  { key: 'overview', href: '/overview', label: 'Overview' },
+interface NavItem {
+  key: NavKey;
+  href: string;
+  label: string;
+  needs?: StaffCapability;
+}
+
+/** The links people use every day: in the bar on a wide screen. */
+const PRIMARY: readonly NavItem[] = [
+  { key: 'dashboard', href: '/dashboard', label: 'Home' },
+  { key: 'charts', href: '/charts', label: 'Charts' },
   { key: 'calendar', href: '/calendar', label: 'Calendar' },
   { key: 'saturday', href: '/saturday', label: 'Saturday updates' },
+  { key: 'reports', href: '/reports', label: 'Reports', needs: 'EXPORT_REPORTS' },
+];
+
+/** Less common pages: under the account button on a wide screen. */
+const MORE: readonly NavItem[] = [
+  { key: 'overview', href: '/overview', label: 'Overview' },
   { key: 'stages', href: '/stages', label: 'Stages' },
-  { key: 'charts', href: '/charts', label: 'Charts' },
   { key: 'workflow', href: '/workflow', label: 'Workflow' },
   { key: 'staff', href: '/staff', label: 'Staff', needs: 'MANAGE_STAFF' },
-  { key: 'reports', href: '/reports', label: 'Reports', needs: 'EXPORT_REPORTS' },
-  { key: 'audit', href: '/audit', label: 'Audit', needs: 'VIEW_AUDIT' },
-] as const satisfies readonly { key: string; href: string; label: string; needs?: StaffCapability }[];
+  { key: 'audit', href: '/audit', label: 'Audit trail', needs: 'VIEW_AUDIT' },
+];
 
-/** Navigation and logout for every signed-in page. */
+/** Navigation for every signed-in page: links in the bar when there is room, a menu button when there is not. */
 export default function AppHeader({ current, fullName, capabilities = [] }: AppHeaderProps) {
+  const allowed = (item: NavItem) => !item.needs || capabilities.includes(item.needs);
+  const toLink = (item: NavItem): MenuLink => ({ href: item.href, label: item.label, current: current === item.key });
+
   return (
-    <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-      <nav aria-label="Main" className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <span className="font-semibold">OncoTrack</span>
-        {NAV.filter(item => !('needs' in item) || capabilities.includes(item.needs)).map(item => (
-          <Link
-            key={item.key}
-            href={item.href}
-            aria-current={current === item.key ? 'page' : undefined}
-            className="underline-offset-4 hover:underline aria-[current=page]:font-semibold aria-[current=page]:underline"
-          >
-            {item.label}
-          </Link>
-        ))}
-        <NotificationBell current={current === 'notifications'} />
-      </nav>
-      <div className="flex items-center gap-4">
-        <span className="text-sm text-zinc-600 dark:text-zinc-400">{fullName}</span>
-        <form method="post" action="/api/auth/clear">
-          <button type="submit" className="font-medium underline underline-offset-4">
-            Log out
-          </button>
-        </form>
-      </div>
-    </header>
+    <>
+      <a href="#main" className="skip-link">
+        Skip to main content
+      </a>
+      <header className="border-b border-line bg-surface">
+        <SiteMenu
+          fullName={fullName}
+          primary={PRIMARY.filter(allowed).map(toLink)}
+          more={MORE.filter(allowed).map(toLink)}
+          bell={<NotificationBell current={current === 'notifications'} />}
+        />
+      </header>
+    </>
   );
 }

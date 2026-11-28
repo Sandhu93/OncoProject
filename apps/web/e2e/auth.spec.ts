@@ -16,7 +16,7 @@ test.describe('WEB-010 logging in', () => {
     await page.getByRole('button', { name: 'Log in' }).click();
 
     await expect(page).toHaveURL('/dashboard?tab=reports');
-    await expect(page.getByRole('heading', { name: 'Dashboard' })).toBeVisible();
+    await expect(page.getByRole('heading', { level: 1, name: /^Good (morning|afternoon|evening), / })).toBeVisible();
   });
 
   test('the dashboard shows the role the API reports, with no way to pick another', async ({ page }) => {
@@ -101,6 +101,7 @@ test.describe('WEB-011 logging out and expired sessions', () => {
     ]);
 
     await page.goto('/dashboard');
+    await page.getByRole('button', { name: /^Account menu/ }).click();
     await page.getByRole('button', { name: 'Log out' }).click();
 
     await expect(page).toHaveURL('/login');

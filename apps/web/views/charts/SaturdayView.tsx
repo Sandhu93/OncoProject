@@ -30,50 +30,52 @@ export default function SaturdayView({ queue }: { queue: ChartQueue }) {
           In treatment
         </h2>
         {treating.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">No chart is in treatment.</p>
+          <p className="text-sm text-muted">No chart is in treatment.</p>
         ) : (
-          <table className="w-full border-collapse text-left">
-            <caption className="sr-only">Saturday updates for each chart in treatment</caption>
-            <thead>
-              <tr className="border-b border-zinc-300 text-sm dark:border-zinc-700">
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Chart
-                </th>
-                <th scope="col" className="py-2 pr-4 font-medium">
-                  Sessions
-                </th>
-                {WEEKLY_ROLES.map(role => (
-                  <th key={role} scope="col" className="py-2 pr-4 font-medium">
-                    {ROLE_LABELS[role]}
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[32rem] border-collapse text-left">
+              <caption className="sr-only">Saturday updates for each chart in treatment</caption>
+              <thead>
+                <tr className="border-b border-zinc-300 text-sm dark:border-zinc-700">
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Chart
                   </th>
-                ))}
-                <th scope="col" className="py-2 font-medium">
-                  <span className="sr-only">Yours</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {treating.map(item => (
-                <tr key={item.rtNumber} className="border-b border-zinc-200 dark:border-zinc-800">
-                  <th scope="row" className="py-2 pr-4 font-normal">
-                    <Link href={chartHref(item.rtNumber)} className="underline underline-offset-4">
-                      {item.rtNumber}
-                    </Link>
+                  <th scope="col" className="py-2 pr-4 font-medium">
+                    Sessions
                   </th>
-                  <td className="py-2 pr-4">
-                    {item.sessionsDone ?? 0}
-                    {item.plannedSessions !== null && ` of ${item.plannedSessions}`}
-                  </td>
                   {WEEKLY_ROLES.map(role => (
-                    <td key={role} className="py-2 pr-4">
-                      {item.weeklyMissing.includes(role) ? 'Not yet' : 'Posted'}
-                    </td>
+                    <th key={role} scope="col" className="py-2 pr-4 font-medium">
+                      {ROLE_LABELS[role]}
+                    </th>
                   ))}
-                  <td className="py-2">{item.needsYou && <strong>Yours to post</strong>}</td>
+                  <th scope="col" className="py-2 font-medium">
+                    <span className="sr-only">Yours</span>
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {treating.map(item => (
+                  <tr key={item.rtNumber} className="border-b border-line">
+                    <th scope="row" className="py-2 pr-4 font-normal">
+                      <Link href={chartHref(item.rtNumber)} className="underline underline-offset-4">
+                        {item.rtNumber}
+                      </Link>
+                    </th>
+                    <td className="py-2 pr-4">
+                      {item.sessionsDone ?? 0}
+                      {item.plannedSessions !== null && ` of ${item.plannedSessions}`}
+                    </td>
+                    {WEEKLY_ROLES.map(role => (
+                      <td key={role} className="py-2 pr-4">
+                        {item.weeklyMissing.includes(role) ? 'Not yet' : 'Posted'}
+                      </td>
+                    ))}
+                    <td className="py-2">{item.needsYou && <strong>Yours to post</strong>}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </section>
 
@@ -82,7 +84,7 @@ export default function SaturdayView({ queue }: { queue: ChartQueue }) {
           Treatment finished, final updates owed
         </h2>
         {finishing.length === 0 ? (
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">None.</p>
+          <p className="text-sm text-muted">None.</p>
         ) : (
           <ul className="flex flex-col gap-1">
             {finishing.map(item => (

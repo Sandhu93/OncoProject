@@ -1,13 +1,44 @@
 @import 'tailwindcss';
 
+/* One small set of colours for every page. Light by default, dark when the device asks for it. */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f4f6f8;
+  --surface: #ffffff;
+  --foreground: #14212b;
+  --muted: #4b5b69;
+  --line: #d5dbe1;
+  --brand: #0b6e6e;
+  --brand-soft: #e3f2f1;
+  --brand-ink: #ffffff;
+  --warn: #8a4b00;
+  --warn-soft: #fff4e0;
+  --danger: #b42318;
+  --danger-soft: #fdecea;
+  --ok: #054f31;
+  --ok-soft: #e7f6ec;
+  --focus: #0b6e6e;
+}
+
+/* Menu button below this width, links in the bar above it. */
+@theme {
+  --breakpoint-lg: 62.5625rem;
 }
 
 @theme inline {
   --color-background: var(--background);
+  --color-surface: var(--surface);
   --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-brand: var(--brand);
+  --color-brand-soft: var(--brand-soft);
+  --color-brand-ink: var(--brand-ink);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
   /* System fonts only: the app runs on a hospital server that may have no internet access. */
   --font-sans: ui-sans-serif, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
@@ -15,8 +46,21 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --background: #0e151b;
+    --surface: #16212a;
+    --foreground: #e8eef2;
+    --muted: #a9b7c3;
+    --line: #2c3b47;
+    --brand: #4fb3b0;
+    --brand-soft: #14393a;
+    --brand-ink: #06201f;
+    --warn: #f0b35a;
+    --warn-soft: #3a2a0e;
+    --danger: #f4877d;
+    --danger-soft: #3f1714;
+    --ok: #8fd9a8;
+    --ok-soft: #12301f;
+    --focus: #4fb3b0;
   }
 }
 
@@ -24,4 +68,40 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans);
+  font-size: 1rem;
+}
+
+/* A clear ring wherever the keyboard is. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+summary:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* First thing a keyboard user can reach: jump past the menu. */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  z-index: 50;
+  border-radius: 0.5rem;
+  background: var(--foreground);
+  color: var(--background);
+  padding: 0.625rem 0.875rem;
+}
+.skip-link:focus {
+  left: 0.75rem;
+  top: 0.75rem;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  a,
+  button {
+    transition:
+      background-color 0.15s,
+      border-color 0.15s;
+  }
 }

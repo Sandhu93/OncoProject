@@ -23,7 +23,7 @@ function Entry({ entry, showDate }: { entry: CalendarEntry; showDate?: boolean }
         {entry.rtNumber}
       </Link>
       {entry.resource && <span className="text-sm">{entry.resource}</span>}
-      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+      <span className="text-sm text-muted">
         {entry.done ? 'Done' : 'Not recorded as done'} · {entry.stage.label}
       </span>
     </li>
@@ -49,7 +49,7 @@ export default function CalendarView({ calendar }: { calendar: Calendar }) {
         <Link href={`/calendar?from=${next}`} className="underline underline-offset-4">
           Next {span} days
         </Link>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p className="text-sm text-muted">
           {formatDay(calendar.from)} to {formatDay(calendar.to)}: {booked}{' '}
           {booked === 1 ? 'appointment' : 'appointments'}
         </p>
@@ -60,7 +60,7 @@ export default function CalendarView({ calendar }: { calendar: Calendar }) {
           <h2 id="late" className="text-lg font-medium">
             Not recorded as done
           </h2>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+          <p className="text-sm text-muted">
             These dates have passed. Record the step on the chart, or give new dates.
           </p>
           <ul>
@@ -83,7 +83,7 @@ export default function CalendarView({ calendar }: { calendar: Calendar }) {
               {day.date === calendar.today && <span className="ml-2 text-sm font-normal">(today)</span>}
             </h2>
             {day.entries.length === 0 ? (
-              <p className="text-sm text-zinc-600 dark:text-zinc-400">Nothing booked.</p>
+              <p className="text-sm text-muted">Nothing booked.</p>
             ) : (
               <ul>
                 {day.entries.map(entry => (

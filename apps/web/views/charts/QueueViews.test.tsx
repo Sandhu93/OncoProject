@@ -64,12 +64,12 @@ describe('NeedsYouList', () => {
 
     const row = screen.getByRole('listitem');
 
-    expect(within(row).getByRole('link', { name: 'RT/1' })).toHaveAttribute('href', '/charts/RT%2F1');
+    expect(within(row).getByRole('link', { name: 'Open RT/1' })).toHaveAttribute('href', '/charts/RT%2F1');
+    expect(within(row).getByText('RT/1')).toBeVisible();
     expect(within(row).getByText('Submit contouring')).toBeVisible();
     expect(within(row).getByText('Urgent')).toBeVisible();
     expect(within(row).getByText('Stalled')).toBeVisible();
-    expect(within(row).getByText('5 days here')).toBeVisible();
-    expect(row).toHaveTextContent('Contouring · Assigned to you · Contouring due 3 Dec 2026');
+    expect(row).toHaveTextContent('5 days here · Assigned to you · Contouring due 3 Dec 2026');
   });
 
   it('names the resident when the chart is assigned to someone else', () => {

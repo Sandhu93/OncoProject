@@ -13,8 +13,7 @@ interface ActionFormProps {
   action: AvailableAction;
 }
 
-const INPUT =
-  'rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900';
+const INPUT = 'min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600';
 
 /** One field of a step, drawn from the API's description of it. Its hint and error are linked for screen readers. */
 function Field({
@@ -104,10 +103,10 @@ function Field({
     <div className="flex flex-col gap-1">
       <label htmlFor={id} className="text-sm font-medium">
         {field.label}
-        {!field.required && <span className="font-normal text-zinc-600 dark:text-zinc-400"> (optional)</span>}
+        {!field.required && <span className="font-normal text-muted"> (optional)</span>}
       </label>
       {field.help && (
-        <p id={hintId} className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p id={hintId} className="text-sm text-muted">
           {field.help}
         </p>
       )}
@@ -173,7 +172,7 @@ export default function ActionForm({ rtNumber, version, action }: ActionFormProp
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+        className="self-start min-h-11 rounded-[10px] bg-brand px-5 py-2 font-medium text-brand-ink disabled:opacity-60 hover:opacity-90"
       >
         {pending ? 'Saving…' : action.requiresReason ? 'Send back' : action.label}
       </button>

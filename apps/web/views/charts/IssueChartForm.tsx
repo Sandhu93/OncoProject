@@ -25,10 +25,10 @@ function Field({ name, label, hint, defaultValue, errors, inputMode, required, m
     <div className="flex flex-col gap-1">
       <label htmlFor={name} className="text-sm font-medium">
         {label}
-        {!required && <span className="font-normal text-zinc-600 dark:text-zinc-400"> (optional)</span>}
+        {!required && <span className="font-normal text-muted"> (optional)</span>}
       </label>
       {hint && (
-        <p id={hintId} className="text-sm text-zinc-600 dark:text-zinc-400">
+        <p id={hintId} className="text-sm text-muted">
           {hint}
         </p>
       )}
@@ -43,7 +43,7 @@ function Field({ name, label, hint, defaultValue, errors, inputMode, required, m
         defaultValue={defaultValue}
         aria-invalid={errors ? true : undefined}
         aria-describedby={describedBy}
-        className="rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900"
+        className="min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600"
       />
       {errors && (
         <p id={errorId} className="text-sm text-red-600">
@@ -99,7 +99,7 @@ export default function IssueChartForm() {
           key={values.priority ?? 'initial'}
           defaultValue={values.priority || 'ROUTINE'}
           aria-invalid={fieldErrors.priority ? true : undefined}
-          className="rounded-md border border-zinc-300 px-3 py-2 dark:border-zinc-700 dark:bg-zinc-900"
+          className="min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base"
         >
           <option value="ROUTINE">Routine</option>
           <option value="URGENT">Urgent</option>
@@ -135,7 +135,7 @@ export default function IssueChartForm() {
       <button
         type="submit"
         disabled={pending}
-        className="self-start rounded-md bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
+        className="self-start min-h-11 rounded-[10px] bg-brand px-5 py-2 font-medium text-brand-ink disabled:opacity-60 hover:opacity-90"
       >
         {pending ? 'Issuing…' : 'Issue chart'}
       </button>

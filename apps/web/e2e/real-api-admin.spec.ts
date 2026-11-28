@@ -27,7 +27,11 @@ test.describe('WEB-091 staff management with the real API', () => {
   test('a consultant adds an account and the new person can sign in with the first password', async ({ page }) => {
     await logIn(page, 'real.consultant');
     await expect(page).toHaveURL('/dashboard');
-    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Staff', exact: true }).click();
+    await page.getByRole('button', { name: /^Account menu/ }).click();
+    await page
+      .getByRole('navigation', { name: 'More pages' })
+      .getByRole('link', { name: 'Staff', exact: true })
+      .click();
 
     const form = page.getByRole('form', { name: 'Add an account' });
 

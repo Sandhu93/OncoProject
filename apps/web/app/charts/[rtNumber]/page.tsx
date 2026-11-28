@@ -40,9 +40,11 @@ export default async function ChartPage({ params }: { params: Params }) {
   ]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="charts" fullName={staff.fullName} capabilities={staff.capabilities} />
-      <ChartDetailView chart={chart} />
-    </main>
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <ChartDetailView chart={chart} />
+      </main>
+    </>
   );
 }

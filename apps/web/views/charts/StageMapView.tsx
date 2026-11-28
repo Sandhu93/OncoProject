@@ -32,7 +32,7 @@ export default function StageMapView({ stages }: { stages: readonly StageSummary
                 aria-label={stage.label}
                 className="flex flex-wrap items-baseline gap-x-4 gap-y-1 rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
               >
-                <span className="w-6 text-sm text-zinc-600 dark:text-zinc-400">{stage.position}</span>
+                <span className="w-6 text-sm text-muted">{stage.position}</span>
                 <span className="w-56 font-medium">{stage.label}</span>
                 <span className="w-24">
                   {stage.open} open

@@ -20,17 +20,18 @@ export default async function EditWorkflowPage() {
   const draft = allowed ? await AdminService.workflowDraft() : null;
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="workflow" fullName={staff.fullName} capabilities={staff.capabilities} />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <div className="flex flex-wrap items-baseline justify-between gap-3">
+          <h1 className="text-2xl font-semibold">Change the workflow</h1>
+          <Link href="/workflow" className="text-sm underline underline-offset-4">
+            Back to the workflow
+          </Link>
+        </div>
 
-      <div className="flex flex-wrap items-baseline justify-between gap-3">
-        <h1 className="text-2xl font-semibold">Change the workflow</h1>
-        <Link href="/workflow" className="text-sm underline underline-offset-4">
-          Back to the workflow
-        </Link>
-      </div>
-
-      {!allowed ? <NoAccess what="change the workflow" /> : draft ? <WorkflowEditor draft={draft} /> : <StartDraft />}
-    </main>
+        {!allowed ? <NoAccess what="change the workflow" /> : draft ? <WorkflowEditor draft={draft} /> : <StartDraft />}
+      </main>
+    </>
   );
 }

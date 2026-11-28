@@ -8,7 +8,7 @@ export default function NotFoundView() {
       <p className="font-mono text-sm font-medium tracking-widest text-zinc-500">404</p>
       <div className="flex max-w-md flex-col gap-3">
         <h1 className="text-3xl font-semibold tracking-tight">Page not found</h1>
-        <p className="text-zinc-600 dark:text-zinc-400">
+        <p className="text-muted">
           The page you are looking for doesn&apos;t exist or has moved. Check the address, or head back to somewhere
           familiar.
         </p>

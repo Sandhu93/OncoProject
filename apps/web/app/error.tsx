@@ -24,7 +24,7 @@ export default function ErrorPage({ error, retry }: ErrorPageProps) {
   return (
     <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8 text-center">
       <h1 className="text-2xl font-semibold">Something went wrong</h1>
-      <p className="text-zinc-600 dark:text-zinc-400">Please try again. If it keeps happening, contact support.</p>
+      <p className="text-muted">Please try again. If it keeps happening, contact support.</p>
       {digest && <p className="text-sm text-zinc-500">Reference: {digest}</p>}
       <button
         type="button"

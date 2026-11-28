@@ -1,5 +1,5 @@
 import type { ChartDetail, ChartSummary } from '@oncotrack/contracts';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 
 import AppHeader from '../layout/AppHeader';
@@ -190,12 +190,46 @@ describe('ChartDetailView', () => {
 });
 
 describe('AppHeader', () => {
-  it('marks the current page and offers logout', () => {
+  it('marks the current page, offers the inbox and has a skip link', () => {
     render(<AppHeader current="charts" fullName="Synthetic Consultant" />);
 
     expect(screen.getByRole('link', { name: 'Charts' })).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Dashboard' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Skip to main content' })).toHaveAttribute('href', '#main');
+    expect(screen.getByRole('link', { name: /^Inbox/ })).toBeInTheDocument();
+  });
+
+  it('opens the account menu with logout, and closes it on Escape', () => {
+    render(<AppHeader current="charts" fullName="Synthetic Consultant" />);
+
+    const button = screen.getByRole('button', { name: 'Account menu, Synthetic Consultant' });
+
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('button', { name: 'Log out' })).not.toBeInTheDocument();
+
+    fireEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
     expect(screen.getByRole('button', { name: 'Log out' })).toBeInTheDocument();
-    expect(screen.getByText('Synthetic Consultant')).toBeInTheDocument();
+
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(screen.queryByRole('button', { name: 'Log out' })).not.toBeInTheDocument();
+  });
+
+  it('opens the same links in a menu panel on a small screen', () => {
+    render(<AppHeader current="calendar" fullName="Synthetic Consultant" capabilities={['EXPORT_REPORTS']} />);
+
+    const button = screen.getByRole('button', { name: 'Menu' });
+
+    expect(button).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(button);
+    expect(button).toHaveAttribute('aria-expanded', 'true');
+
+    const drawer = document.getElementById('menu-drawer')!;
+
+    expect(within(drawer).getByRole('link', { name: 'Calendar' })).toHaveAttribute('aria-current', 'page');
+    expect(within(drawer).getByRole('link', { name: 'Reports' })).toBeInTheDocument();
+    expect(within(drawer).getByRole('link', { name: 'Stages' })).toBeInTheDocument();
+    expect(within(drawer).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
+    expect(within(drawer).getByRole('searchbox', { name: 'Find a chart' })).toBeInTheDocument();
   });
 });

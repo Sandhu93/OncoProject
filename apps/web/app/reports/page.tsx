@@ -38,19 +38,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Sear
   }
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-6xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="reports" fullName={staff.fullName} capabilities={staff.capabilities} />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-6xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <h1 className="text-2xl font-semibold">Reports</h1>
 
-      <h1 className="text-2xl font-semibold">Reports</h1>
-
-      {!allowed ? (
-        <NoAccess what="read the reports" />
-      ) : (
-        <>
-          <RangeForm from={report?.range.from ?? asked.from} to={report?.range.to ?? asked.to} problems={problems} />
-          {report && <ReportsView report={report} />}
-        </>
-      )}
-    </main>
+        {!allowed ? (
+          <NoAccess what="read the reports" />
+        ) : (
+          <>
+            <RangeForm from={report?.range.from ?? asked.from} to={report?.range.to ?? asked.to} problems={problems} />
+            {report && <ReportsView report={report} />}
+          </>
+        )}
+      </main>
+    </>
   );
 }

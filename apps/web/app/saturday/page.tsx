@@ -16,13 +16,15 @@ export default async function SaturdayPage() {
   const [staff, queue] = await Promise.all([StaffService.me(), ChartService.queue()]);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
+    <>
       <AppHeader current="saturday" fullName={staff.fullName} capabilities={staff.capabilities} />
-      <AutoRefresh />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-5xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <AutoRefresh />
 
-      <h1 className="text-2xl font-semibold">Saturday updates</h1>
+        <h1 className="text-2xl font-semibold">Saturday updates</h1>
 
-      <SaturdayView queue={queue} />
-    </main>
+        <SaturdayView queue={queue} />
+      </main>
+    </>
   );
 }

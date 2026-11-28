@@ -62,6 +62,7 @@ test.describe('WEB-020 the web app with the real API', () => {
 
     expect(before.status()).toBe(200);
 
+    await page.getByRole('button', { name: /^Account menu/ }).click();
     await page.getByRole('button', { name: 'Log out' }).click();
     await expect(page).toHaveURL('/login');
 

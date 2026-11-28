@@ -17,7 +17,7 @@ export default function StaffView({
 }) {
   return (
     <>
-      <p className="text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="text-sm text-muted">
         Roles decide which steps a person can do. Extra access is for running the system. A switched-off account keeps
         its history but cannot sign in.
       </p>
@@ -27,7 +27,7 @@ export default function StaffView({
           <li key={member.id} className="rounded-md border border-zinc-200 p-4 dark:border-zinc-800">
             <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-base font-semibold">{member.fullName}</h2>
-              <span className="text-sm text-zinc-600 dark:text-zinc-400">{member.username}</span>
+              <span className="text-sm text-muted">{member.username}</span>
               {member.id === youId && <span className="text-sm">(you)</span>}
               {member.identityProvider === 'DIRECTORY' && (
                 <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs font-semibold dark:bg-zinc-800">
@@ -51,7 +51,7 @@ export default function StaffView({
                 <> · {member.capabilities.map(capability => CAPABILITY_LABELS[capability]).join(', ')}</>
               )}
             </p>
-            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            <p className="text-sm text-muted">
               {member.lastLoginAt ? `Last signed in ${formatDateTime(member.lastLoginAt)}` : 'Has not signed in yet'}
             </p>
 

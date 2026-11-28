@@ -7,6 +7,6 @@ export default function PriorityBadge({ priority }: { priority: ChartPriority })
       Urgent
     </span>
   ) : (
-    <span className="text-sm text-zinc-600 dark:text-zinc-400">Routine</span>
+    <span className="text-sm text-muted">Routine</span>
   );
 }

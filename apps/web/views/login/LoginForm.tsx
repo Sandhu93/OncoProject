@@ -36,7 +36,7 @@ function Field({ name, label, type, autoComplete, defaultValue, errors }: FieldP
         defaultValue={defaultValue}
         aria-invalid={errors ? true : undefined}
         aria-describedby={errors ? errorId : undefined}
-        className="rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900"
+        className="min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600"
       />
       {errors && (
         <p id={errorId} className="text-sm text-red-600">

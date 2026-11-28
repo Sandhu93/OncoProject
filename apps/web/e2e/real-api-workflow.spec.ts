@@ -400,6 +400,7 @@ test.describe('WEB-055 the queue follows the workflow', () => {
 
     // The consultant has nothing to do on it: it sits under everyone else's, waiting on the radiographer.
     await page.goto('/dashboard');
+    await page.getByText(/Everyone else.s charts/).click();
     const others = page.getByRole('table', { name: 'Charts waiting on other people' });
     await expect(others.getByRole('row', { name: new RegExp(rtNumber) })).toContainText('Radiographer');
     await expect(page.getByRole('list', { name: 'Charts that need you' }).getByText(rtNumber)).toHaveCount(0);

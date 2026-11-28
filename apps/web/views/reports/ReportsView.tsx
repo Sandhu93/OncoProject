@@ -6,8 +6,7 @@ import { formatDateTime, formatDay } from '@/utils/format';
 
 import { chartHref } from '@/views/charts/ChartTable';
 
-const INPUT =
-  'rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900';
+const INPUT = 'min-h-11 rounded-[10px] border border-line bg-surface px-3 py-2 text-base aria-invalid:border-red-600';
 const TH = 'px-3 py-2 text-left font-medium';
 const TD = 'px-3 py-2';
 
@@ -45,10 +44,7 @@ export function RangeForm({ from, to, problems }: { from: string; to: string; pr
           {problems?.[name] && <p className="text-sm text-red-600">{problems[name][0]}</p>}
         </div>
       ))}
-      <button
-        type="submit"
-        className="mt-6 rounded-md bg-zinc-900 px-4 py-2 text-white dark:bg-zinc-100 dark:text-zinc-900"
-      >
+      <button type="submit" className="mt-6 min-h-11 rounded-[10px] bg-brand px-5 py-2 text-brand-ink hover:opacity-90">
         Show
       </button>
     </form>
@@ -87,7 +83,7 @@ function Section({
         </h2>
         {download}
       </div>
-      <p className="max-w-3xl text-sm text-zinc-600 dark:text-zinc-400">{about}</p>
+      <p className="max-w-3xl text-sm text-muted">{about}</p>
       {children}
     </section>
   );
@@ -105,7 +101,7 @@ export default function ReportsView({ report }: { report: Reports }) {
 
   return (
     <div className="flex flex-col gap-10">
-      <p className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
+      <p className="flex flex-wrap items-center gap-x-6 gap-y-1 text-sm text-muted">
         <span>
           {formatDay(report.range.from)} to {formatDay(report.range.to)}. Read {formatDateTime(report.generatedAt)}.
         </span>
@@ -126,7 +122,7 @@ export default function ReportsView({ report }: { report: Reports }) {
       >
         <div className="overflow-x-auto">
           <table aria-labelledby="waiting-title" className="w-full min-w-[48rem] text-sm">
-            <thead className="border-b border-zinc-300 dark:border-zinc-700">
+            <thead className="border-b border-line">
               <tr>
                 <th scope="col" className={TH}>
                   Stage
@@ -156,7 +152,7 @@ export default function ReportsView({ report }: { report: Reports }) {
             </thead>
             <tbody>
               {report.waiting.map(row => (
-                <tr key={row.stage} className="border-b border-zinc-200 dark:border-zinc-800">
+                <tr key={row.stage} className="border-b border-line">
                   <th scope="row" className={`${TD} text-left font-normal`}>
                     {row.stageLabel}
                     {row.phase && <span className="block text-xs text-zinc-500">{row.phase}</span>}
@@ -190,7 +186,7 @@ export default function ReportsView({ report }: { report: Reports }) {
         ) : (
           <div className="overflow-x-auto">
             <table aria-labelledby="stalled-title" className="w-full min-w-[48rem] text-sm">
-              <thead className="border-b border-zinc-300 dark:border-zinc-700">
+              <thead className="border-b border-line">
                 <tr>
                   <th scope="col" className={TH}>
                     Chart
@@ -208,7 +204,7 @@ export default function ReportsView({ report }: { report: Reports }) {
               </thead>
               <tbody>
                 {report.stalled.map(row => (
-                  <tr key={row.rtNumber} className="border-b border-zinc-200 dark:border-zinc-800">
+                  <tr key={row.rtNumber} className="border-b border-line">
                     <th scope="row" className={`${TD} text-left font-medium`}>
                       <Link href={chartHref(row.rtNumber)} className="underline underline-offset-4">
                         {row.rtNumber}
@@ -261,14 +257,14 @@ export default function ReportsView({ report }: { report: Reports }) {
                 ] as const
               ).map(([label, value]) => (
                 <div key={label} className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800">
-                  <dt className="text-zinc-600 dark:text-zinc-400">{label}</dt>
+                  <dt className="text-muted">{label}</dt>
                   <dd className="text-xl font-semibold">{value}</dd>
                 </div>
               ))}
             </dl>
             <div className="overflow-x-auto">
               <table aria-labelledby="treatment-title" className="w-full min-w-[40rem] text-sm">
-                <thead className="border-b border-zinc-300 dark:border-zinc-700">
+                <thead className="border-b border-line">
                   <tr>
                     <th scope="col" className={TH}>
                       Chart
@@ -292,7 +288,7 @@ export default function ReportsView({ report }: { report: Reports }) {
                 </thead>
                 <tbody>
                   {items.map(row => (
-                    <tr key={row.rtNumber} className="border-b border-zinc-200 dark:border-zinc-800">
+                    <tr key={row.rtNumber} className="border-b border-line">
                       <th scope="row" className={`${TD} text-left font-medium`}>
                         <Link href={chartHref(row.rtNumber)} className="underline underline-offset-4">
                           {row.rtNumber}
