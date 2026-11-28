@@ -1,4 +1,4 @@
-// Creates (or resets) three local TEST accounts with a known password, for trying the app on a
+// Creates (or resets) six local TEST accounts (one per part of the workflow) with a known password, for trying the app on a
 // development machine. It refuses to run unless DATABASE_URL points at this computer, so the known
 // password can never reach a real server.
 //   npm run staff:create-test
@@ -15,9 +15,27 @@ const ACCOUNTS = [
     capabilities: ['MANAGE_STAFF', 'CONFIGURE_WORKFLOW', 'VIEW_AUDIT', 'EXPORT_REPORTS'],
   },
   {
+    username: 'test.radiographer',
+    fullName: 'Test Radiographer',
+    roles: ['RADIOGRAPHER'],
+    capabilities: [],
+  },
+  {
     username: 'test.resident',
     fullName: 'Test Junior Resident',
     roles: ['JUNIOR_RESIDENT'],
+    capabilities: [],
+  },
+  {
+    username: 'test.resident2',
+    fullName: 'Test Junior Resident Two',
+    roles: ['JUNIOR_RESIDENT'],
+    capabilities: [],
+  },
+  {
+    username: 'test.senior',
+    fullName: 'Test Senior Resident',
+    roles: ['SENIOR_RESIDENT'],
     capabilities: [],
   },
   {
@@ -128,7 +146,7 @@ try {
     );
   }
   await client.query('COMMIT');
-  console.log(`\nThese are TEST accounts. Password for all three: ${password}`);
+  console.log(`\nThese are TEST accounts. Password for all six: ${password}`);
 } catch (error) {
   await client.query('ROLLBACK').catch(() => {});
   fail(`Could not create the test accounts: ${error?.message ?? 'unknown error'}`);
