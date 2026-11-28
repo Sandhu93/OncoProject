@@ -41,25 +41,29 @@ function Field({
     'aria-invalid': errors ? true : undefined,
     'aria-describedby': describedBy,
     className: INPUT,
-    // React resets a form after its action; a field only picks up a new default when it is remounted.
-    key: `${field.key}:${current}`,
   } as const;
+  // React resets a form after its action; a field only picks up a new default when it is remounted.
+  // The key is passed on the element itself: React does not allow it inside spread props.
+  const key = `${field.key}:${current}`;
 
   let control: React.ReactNode;
 
   switch (field.type) {
     case 'area':
-      control = <textarea {...shared} rows={3} maxLength={field.maxLength ?? 500} placeholder={field.placeholder} />;
+      control = (
+        <textarea key={key} {...shared} rows={3} maxLength={field.maxLength ?? 500} placeholder={field.placeholder} />
+      );
       break;
     case 'date':
-      control = <input {...shared} type="date" min={field.min} max={field.max} />;
+      control = <input key={key} {...shared} type="date" min={field.min} max={field.max} />;
       break;
     case 'time':
-      control = <input {...shared} type="time" />;
+      control = <input key={key} {...shared} type="time" />;
       break;
     case 'number':
       control = (
         <input
+          key={key}
           {...shared}
           type="text"
           inputMode="numeric"
@@ -72,7 +76,7 @@ function Field({
     case 'select':
     case 'staff':
       control = (
-        <select {...shared}>
+        <select key={key} {...shared}>
           {!field.required && <option value="">—</option>}
           {field.type === 'staff' && (field.options?.length ?? 0) === 0 && <option value="">No one to choose</option>}
           {field.options?.map(option => (
@@ -86,6 +90,7 @@ function Field({
     default:
       control = (
         <input
+          key={key}
           {...shared}
           type="text"
           autoComplete="off"
