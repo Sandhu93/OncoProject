@@ -363,6 +363,35 @@ const server = createServer(async (request, response) => {
         stallDays: 3,
         weekEnding: '2026-11-28',
         items,
+        stages: [
+          {
+            code: 'RT_CHART_ISSUED',
+            label: 'RT chart issued',
+            phase: 'Getting ready',
+            position: 1,
+            open: items.filter(item => item.stage.code === 'RT_CHART_ISSUED').length,
+            stalled: items.filter(item => item.stage.code === 'RT_CHART_ISSUED' && item.stalled).length,
+            charts: items.filter(item => item.stage.code === 'RT_CHART_ISSUED').map(item => item.rtNumber),
+          },
+          {
+            code: 'CONTOURING',
+            label: 'Contouring',
+            phase: 'Contouring and planning',
+            position: 5,
+            open: 0,
+            stalled: 0,
+            charts: [],
+          },
+          {
+            code: 'TREATMENT_IN_PROGRESS',
+            label: 'Treatment in progress',
+            phase: 'Treatment',
+            position: 13,
+            open: 0,
+            stalled: 0,
+            charts: [],
+          },
+        ],
         totals: {
           open: items.length,
           gettingReady: items.length,
@@ -370,6 +399,31 @@ const server = createServer(async (request, response) => {
           inTreatment: 0,
           saturdayUpdatesToCome: 0,
         },
+      });
+    }
+
+    if (method === 'GET' && route.pathname === '/api/v1/charts/calendar') {
+      const entry = (rtNumber, kind, date, time, resource, done) => ({
+        rtNumber,
+        kind,
+        date,
+        time,
+        resource,
+        done,
+        stage: { code: 'SIMULATION_DATES_GIVEN', label: 'Dates given' },
+      });
+      const days = ['2026-11-28', '2026-11-29', '2026-11-30'].map(date => ({ date, entries: [] }));
+
+      days[0].entries.push(entry('SEED-001', 'MOULD', '2026-11-28', '10:00', null, true));
+      days[2].entries.push(entry('SEED-001', 'CT_SIM', '2026-11-30', '11:30', null, false));
+      days[2].entries.push(entry('SEED-002', 'FIRST_TREATMENT', '2026-11-30', '15:00', 'LINAC 2', false));
+
+      return send(response, 200, {
+        today: '2026-11-28',
+        from: '2026-11-28',
+        to: '2026-11-30',
+        late: [entry('SEED-003', 'MOULD', '2026-11-26', '09:00', null, false)],
+        days,
       });
     }
 

@@ -1,6 +1,7 @@
 import 'server-only';
 
 import {
+  type Calendar,
   CHART_PRIORITIES,
   type ChartDetail,
   type ChartList,
@@ -120,7 +121,36 @@ const QueueItemSchema = z.object({
   weeklyMissing: z.array(z.enum(CLINICAL_ROLES)),
 });
 
+const CalendarEntrySchema = z.object({
+  rtNumber: z.string(),
+  kind: z.enum(['MOULD', 'CT_SIM', 'FIRST_TREATMENT']),
+  date: z.string(),
+  time: z.string(),
+  resource: z.string().nullable(),
+  done: z.boolean(),
+  stage: z.object({ code: z.string(), label: z.string() }),
+});
+
+const CalendarSchema = z.object({
+  today: z.string(),
+  from: z.string(),
+  to: z.string(),
+  late: z.array(CalendarEntrySchema),
+  days: z.array(z.object({ date: z.string(), entries: z.array(CalendarEntrySchema) })),
+});
+
+const StageSummarySchema = z.object({
+  code: z.string(),
+  label: z.string(),
+  phase: z.string().nullable(),
+  position: z.number(),
+  open: z.number(),
+  stalled: z.number(),
+  charts: z.array(z.string()),
+});
+
 const ChartQueueSchema = z.object({
+  stages: z.array(StageSummarySchema),
   stallDays: z.number(),
   weekEnding: z.string(),
   items: z.array(QueueItemSchema),
@@ -153,6 +183,14 @@ export default class ChartService {
     handleRequest<ChartQueue>('/charts/queue', {
       requiresAuth: true,
       parse: data => ChartQueueSchema.parse(data),
+    });
+
+  /** Mould, CT Sim and first-treatment appointments by day, from `from` (default today) for `days` days (default 14). */
+  static calendar = (query: { from?: string; days?: number } = {}) =>
+    handleRequest<Calendar>('/charts/calendar', {
+      requiresAuth: true,
+      query: { ...query },
+      parse: data => CalendarSchema.parse(data),
     });
 
   /** One chart and its history. A 404 throws an `ApiError` with code `CHART_NOT_FOUND`. */

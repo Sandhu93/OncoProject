@@ -1,6 +1,13 @@
 import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from '@nestjs/common';
-import type { ChartDetail, ChartList, ChartQueue, ChartSummary } from '@oncotrack/contracts';
+import type {
+  Calendar,
+  ChartDetail,
+  ChartList,
+  ChartQueue,
+  ChartSummary,
+} from '@oncotrack/contracts';
 import { CurrentActor, type Actor } from '../auth/actor.js';
+import { CalendarService } from './calendar.service.js';
 import { ChartActionsService } from './chart-actions.service.js';
 import { ChartsService, type ListFilters } from './charts.service.js';
 import { CommentsService } from './comments.service.js';
@@ -18,6 +25,7 @@ export class ChartsController {
     @Inject(ChartActionsService) private readonly actions: ChartActionsService,
     @Inject(QueueService) private readonly queue: QueueService,
     @Inject(CommentsService) private readonly comments: CommentsService,
+    @Inject(CalendarService) private readonly calendar: CalendarService,
   ) {}
 
   @Post()
@@ -39,6 +47,12 @@ export class ChartsController {
   }
 
   /** Every open chart, marked with what needs the signed-in person. Declared before `:rtNumber` routes. */
+  /** Mould, CT Sim and first-treatment appointments by day. `?from=YYYY-MM-DD&days=14`. Declared before `:rtNumber` routes. */
+  @Get('calendar')
+  calendarFor(@Query() query: { from?: string; days?: string }): Promise<Calendar> {
+    return this.calendar.calendar(query);
+  }
+
   @Get('queue')
   queueFor(@CurrentActor() actor: Actor): Promise<ChartQueue> {
     return this.queue.queue(actor);

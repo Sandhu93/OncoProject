@@ -4,6 +4,7 @@ import { AccessGuard } from './auth/access.guard.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
 import { SessionService } from './auth/session.service.js';
+import { CalendarService } from './charts/calendar.service.js';
 import { ChartActionsService } from './charts/chart-actions.service.js';
 import { ChartControlsService } from './charts/chart-controls.service.js';
 import { CommentsService } from './charts/comments.service.js';
@@ -27,6 +28,7 @@ import { CommandService } from './transactions/command.service.js';
     ChartsService,
     ChartActionsService,
     CommentsService,
+    CalendarService,
     ChartControlsService,
     QueueService,
     NotificationService,

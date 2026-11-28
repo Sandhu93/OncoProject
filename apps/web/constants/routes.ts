@@ -11,7 +11,15 @@ export const AFTER_LOGIN_ROUTE = '/dashboard';
  * Pages that need a logged-in user. A path matches when it equals an entry or starts with it plus `/`
  * (`/dashboard` covers `/dashboard/settings`). Add your own sections here.
  */
-export const PROTECTED_ROUTES = ['/dashboard', '/overview', '/charts', '/notifications'];
+export const PROTECTED_ROUTES = [
+  '/dashboard',
+  '/overview',
+  '/calendar',
+  '/saturday',
+  '/stages',
+  '/charts',
+  '/notifications',
+];
 
 /** Pages for logged-out users only. Logged-in users are sent to AFTER_LOGIN_ROUTE. */
 export const GUEST_ONLY_ROUTES = [LOGIN_ROUTE];

@@ -67,6 +67,23 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
     );
   });
 
+  test('the dates given appear on the calendar and the stage map, for anyone', async ({ page }) => {
+    await logIn(page, 'real.senior');
+    await page.goto('/calendar');
+
+    // Both appointments of this chart are on the calendar, with their times, each a link to the chart.
+    const entries = page.getByRole('link', { name: rtNumber, exact: true });
+
+    await expect(entries.first()).toBeVisible();
+    await expect(page.getByText('Mould', { exact: true }).first()).toBeVisible();
+    await expect(page.getByText('CT Sim', { exact: true }).first()).toBeVisible();
+
+    await page.goto('/stages');
+    await expect(
+      page.getByRole('listitem', { name: 'Dates given' }).getByRole('link', { name: rtNumber, exact: true }),
+    ).toBeVisible();
+  });
+
   test('a mould date in the past is refused where the person is looking, and nothing is saved', async ({ page }) => {
     const rt = `WF/${STAMP}/PAST`;
 

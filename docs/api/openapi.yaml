@@ -252,6 +252,36 @@ paths:
           description: Not signed in
         '404':
           description: CHART_NOT_FOUND
+  /charts/calendar:
+    get:
+      operationId: getCalendar
+      summary: Mould, CT Sim and first-treatment appointments by day
+      description: |
+        Taken from the dates given on open charts, so it always agrees with them. `late` lists appointments before
+        today that were never recorded as done. Every day in the window is returned, empty or not.
+      security:
+        - bearer: []
+      parameters:
+        - {
+            name: from,
+            in: query,
+            required: false,
+            schema: { type: string, format: date },
+            description: Defaults to today (India Standard Time),
+          }
+        - {
+            name: days,
+            in: query,
+            required: false,
+            schema: { type: integer, minimum: 1, maximum: 31, default: 14 },
+          }
+      responses:
+        '200':
+          description: The calendar
+        '400':
+          description: VALIDATION_FAILED, with `details` as a list of { field, message }
+        '401':
+          description: Not signed in
   /charts/by-number/{rtNumber}/comments:
     post:
       operationId: addChartComment

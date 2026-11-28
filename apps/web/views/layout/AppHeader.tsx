@@ -4,13 +4,16 @@ import NotificationBell from './NotificationBell';
 
 interface AppHeaderProps {
   /** The page the user is on, so its link can be marked as current. */
-  current: 'dashboard' | 'overview' | 'charts' | 'notifications';
+  current: 'dashboard' | 'overview' | 'calendar' | 'saturday' | 'stages' | 'charts' | 'notifications';
   fullName: string;
 }
 
 const NAV = [
   { key: 'dashboard', href: '/dashboard', label: 'Dashboard' },
   { key: 'overview', href: '/overview', label: 'Overview' },
+  { key: 'calendar', href: '/calendar', label: 'Calendar' },
+  { key: 'saturday', href: '/saturday', label: 'Saturday updates' },
+  { key: 'stages', href: '/stages', label: 'Stages' },
   { key: 'charts', href: '/charts', label: 'Charts' },
 ] as const;
 
@@ -18,7 +21,7 @@ const NAV = [
 export default function AppHeader({ current, fullName }: AppHeaderProps) {
   return (
     <header className="flex flex-wrap items-center justify-between gap-4 border-b border-zinc-200 pb-4 dark:border-zinc-800">
-      <nav aria-label="Main" className="flex items-center gap-6">
+      <nav aria-label="Main" className="flex flex-wrap items-center gap-x-6 gap-y-2">
         <span className="font-semibold">OncoTrack</span>
         {NAV.map(item => (
           <Link

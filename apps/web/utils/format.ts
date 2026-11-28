@@ -36,3 +36,19 @@ const DATE_TIME = new Intl.DateTimeFormat('en-IN', {
 
 /** "28 Nov 2026, 1:04 am" in India Standard Time. */
 export const formatDateTime = (iso: string): string => DATE_TIME.format(new Date(iso));
+
+/** The day `offset` days from a plain YYYY-MM-DD day (negative for earlier). */
+export const shiftDay = (day: string, offset: number): string => {
+  const [year, month, date] = day.split('-').map(Number);
+
+  return new Date(Date.UTC(year!, month! - 1, date! + offset)).toISOString().slice(0, 10);
+};
+
+/** "Sat 28 Nov" from a plain YYYY-MM-DD day. */
+export const formatWeekday = (day: string): string => {
+  const [year, month, date] = day.split('-').map(Number);
+
+  return new Intl.DateTimeFormat('en-IN', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(year!, month! - 1, date)))
+    .replace(',', '');
+};

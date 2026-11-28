@@ -322,6 +322,68 @@ test.describe('WEB-060 the queue and the overview', () => {
   });
 });
 
+test.describe('WEB-080 calendar, Saturday updates and stages', () => {
+  test.beforeEach(async ({ context, baseURL }) => {
+    await signIn(context, baseURL!);
+  });
+
+  test('the calendar shows each day, the late ones, and moves by a window', async ({ page }) => {
+    await page.goto('/calendar');
+
+    await expect(page.getByRole('heading', { name: 'Calendar', level: 1 })).toBeVisible();
+
+    const late = page.getByRole('region', { name: 'Not recorded as done' });
+
+    await expect(late.getByRole('link', { name: 'SEED-003' })).toBeVisible();
+
+    const monday = page.getByRole('listitem', { name: 'Mon 30 Nov' });
+
+    await expect(monday).toContainText('11:30');
+    await expect(monday).toContainText('LINAC 2');
+    await expect(page.getByRole('listitem', { name: 'Sun 29 Nov' })).toContainText('Nothing booked.');
+
+    await page.getByRole('link', { name: 'Next 3 days' }).click();
+    await expect(page).toHaveURL(/\/calendar\?from=2026-12-01/);
+  });
+
+  test('the Saturday updates page leads with the week', async ({ page }) => {
+    await page.goto('/saturday');
+
+    await expect(page.getByRole('heading', { name: 'Saturday updates', level: 1 })).toBeVisible();
+    await expect(page.getByText(/Week ending/)).toContainText('28 Nov 2026');
+    await expect(page.getByText('No chart is in treatment.')).toBeVisible();
+  });
+
+  test('the stage map lists the workflow by phase with the charts in each stage', async ({ page }) => {
+    await page.goto('/stages');
+
+    await expect(page.getByRole('heading', { name: 'Stages', level: 1 })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Getting ready', level: 2 })).toBeVisible();
+    await expect(page.getByRole('listitem', { name: 'RT chart issued' }).getByRole('link').first()).toBeVisible();
+    await expect(page.getByRole('listitem', { name: 'Contouring' })).toContainText('0 open');
+  });
+
+  test('every page is reached from the main navigation', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    for (const [name, url] of [
+      ['Calendar', '/calendar'],
+      ['Saturday updates', '/saturday'],
+      ['Stages', '/stages'],
+    ] as const) {
+      await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name, exact: true }).click();
+      await expect(page).toHaveURL(url);
+    }
+  });
+
+  test('a logged-out visitor is sent to log in', async ({ page, context }) => {
+    await context.clearCookies();
+    await page.goto('/calendar');
+
+    await expect(page).toHaveURL(/\/login\?redirect=/);
+  });
+});
+
 test.describe('WEB-070 the inbox', () => {
   test.beforeEach(async ({ context, baseURL }) => {
     await signIn(context, baseURL!);

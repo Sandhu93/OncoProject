@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ChartQueue, ClinicalRole, QueueItem } from '@oncotrack/contracts';
+import type { ChartQueue, ClinicalRole, QueueItem, StageSummary } from '@oncotrack/contracts';
 import type { Actor } from '../auth/actor.js';
 import { readConfig } from '../config.js';
 import { DatabaseService } from '../database/database.service.js';
@@ -190,6 +190,24 @@ export class QueueService {
         ),
     );
 
+    const active = await this.database.query<{ code: string; label: string; position: number }>(
+      `SELECT s.code, s.label, (row_number() OVER (ORDER BY s.display_order))::int AS position
+         FROM workflow_stages s JOIN workflow_versions w ON w.id = s.workflow_id AND w.status = 'ACTIVE'
+        ORDER BY s.display_order`,
+    );
+    const stageMap: StageSummary[] = active.rows.map((stage) => {
+      const here = items.filter((item) => item.stage.code === stage.code);
+      return {
+        code: stage.code,
+        label: stage.label,
+        phase: STAGE_INFO[stage.code]?.phase ?? null,
+        position: stage.position,
+        open: here.length,
+        stalled: here.filter((item) => item.stalled).length,
+        charts: here.map((item) => item.rtNumber),
+      };
+    });
+
     const open = items.length;
     const inTreatmentCount = items.filter((item) =>
       [TREATMENT_STAGE, FINISHED_STAGE].includes(item.stage.code),
@@ -198,6 +216,7 @@ export class QueueService {
       stallDays,
       weekEnding,
       items,
+      stages: stageMap,
       totals: {
         open,
         gettingReady: open - inTreatmentCount,

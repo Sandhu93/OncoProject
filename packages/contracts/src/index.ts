@@ -293,6 +293,19 @@ export interface QueueItem {
   weeklyMissing: readonly ClinicalRole[];
 }
 
+/** One stage of the active workflow with the open charts in it, for the stage map. */
+export interface StageSummary {
+  code: string;
+  label: string;
+  phase: string | null;
+  /** 1-based position in the workflow. */
+  position: number;
+  open: number;
+  stalled: number;
+  /** RT numbers of the open charts here, most urgent and longest-waiting first. */
+  charts: readonly string[];
+}
+
 export interface ChartQueue {
   /** Days a chart may wait in a stage before it counts as stalled (outside treatment). */
   stallDays: number;
@@ -300,6 +313,8 @@ export interface ChartQueue {
   weekEnding: string;
   /** Every open chart: the ones that need the signed-in person first, most urgent and longest-waiting first. */
   items: readonly QueueItem[];
+  /** Every stage of the active workflow in order, with how many open charts are in each. */
+  stages: readonly StageSummary[];
   totals: {
     open: number;
     gettingReady: number;
@@ -330,4 +345,34 @@ export interface ApiErrorBody {
   code: string;
   message: string;
   details?: readonly { field: string; message: string }[];
+}
+
+/** One appointment on the calendar, taken from the dates given on an open chart. */
+export interface CalendarEntry {
+  rtNumber: string;
+  kind: 'MOULD' | 'CT_SIM' | 'FIRST_TREATMENT';
+  /** YYYY-MM-DD. */
+  date: string;
+  /** HH:MM, or an empty string when none was given. */
+  time: string;
+  /** The machine, for a first treatment. */
+  resource: string | null;
+  /** Already done (mould made, CT Sim done, treatment started). */
+  done: boolean;
+  stage: { code: string; label: string };
+}
+
+export interface CalendarDay {
+  date: string;
+  entries: readonly CalendarEntry[];
+}
+
+export interface Calendar {
+  today: string;
+  from: string;
+  to: string;
+  /** Appointments before today that were never recorded as done, oldest first. */
+  late: readonly CalendarEntry[];
+  /** Every day from `from` to `to`, with its appointments in time order. */
+  days: readonly CalendarDay[];
 }
