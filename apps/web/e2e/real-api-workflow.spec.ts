@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test';
 
+import { chartAtCtSimDone } from './workflow-api';
+
 // The workflow, step by step, in a browser against the real API on a real (in-memory) PostgreSQL.
 // Each describe issues its own chart so the tests do not depend on each other's charts.
 test.describe.configure({ mode: 'serial' });
@@ -86,5 +88,87 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
     await expect(page.getByText('CT-77').first()).toBeVisible();
     await expect(page.getByRole('form')).toHaveCount(0);
     await expect(page.getByText('This step is not yours to take.')).toBeVisible();
+  });
+});
+
+test.describe('WEB-052 contouring: assign, submit, verify, approve, send back', () => {
+  const rtNumber = `WF/${STAMP}/2`;
+  const open = (page: import('@playwright/test').Page) => page.goto(`/charts/${encodeURIComponent(rtNumber)}`);
+
+  test('the consultant picks a junior resident and a due date', async ({ page, request }) => {
+    await request.post(`${CONTROL}/activate-workflow`);
+    await chartAtCtSimDone(request, rtNumber);
+    await logIn(page, 'real.consultant');
+    await open(page);
+
+    await expect(page.getByText('Waiting for a junior resident to be assigned for contouring')).toBeVisible();
+    const choice = page.getByLabel('Junior resident', { exact: true });
+
+    await expect(choice.getByRole('option')).toHaveText(['Real Junior Anand', 'Real Junior Bina']);
+    await choice.selectOption({ label: 'Real Junior Bina' });
+    await page.getByLabel('Instructions for the resident').fill('Both parotids please.');
+    await page.getByRole('button', { name: 'Assign a junior resident' }).click();
+
+    await expect(page.getByText('Waiting for the assigned junior resident to submit contouring')).toBeVisible();
+    await expect(page.getByText('Contouring assigned to', { exact: true })).toBeVisible();
+    await expect(page.getByText('Real Junior Bina').first()).toBeVisible();
+    await expect(page.getByRole('row', { name: /Assigned to Real Junior Bina/ })).toContainText(
+      'Both parotids please.',
+    );
+  });
+
+  test('the other junior resident is not offered the step; the assigned one submits', async ({ page }) => {
+    await logIn(page, 'real.junior');
+    await open(page);
+    await expect(page.getByText('This step is not yours to take.')).toBeVisible();
+    await expect(page.getByRole('form')).toHaveCount(0);
+
+    await logIn(page, 'real.junior2');
+    await open(page);
+    await page.getByLabel(/Contour set name/).fill('C-2001');
+    await page.getByRole('button', { name: 'Submit contouring' }).click();
+
+    await expect(page.getByText('Waiting for the senior resident to verify the contouring')).toBeVisible();
+    await expect(page.getByText('C-2001').first()).toBeVisible();
+  });
+
+  test('a senior resident must give a reason to send it back, then the chart returns to the resident', async ({
+    page,
+  }) => {
+    await logIn(page, 'real.senior');
+    await open(page);
+    await page.getByRole('button', { name: 'Send back' }).click();
+
+    await expect(page.getByLabel('Why is it going back?')).toHaveAccessibleDescription(/Say why it is going back\./);
+
+    await page.getByLabel('Why is it going back?').fill('Left lung is missing.');
+    await page.getByRole('button', { name: 'Send back' }).click();
+
+    await expect(page.getByText('Waiting for the assigned junior resident to submit contouring')).toBeVisible();
+    await expect(page.getByRole('row', { name: /Send back to junior resident/ })).toContainText(
+      'Reason: Left lung is missing.',
+    );
+    await expect(page.getByText('Contouring submitted', { exact: true })).toHaveCount(0);
+  });
+
+  test('submit again, then the senior resident verifies and the consultant approves', async ({ page }) => {
+    await logIn(page, 'real.junior2');
+    await open(page);
+    await page.getByRole('button', { name: 'Submit contouring' }).click();
+    await expect(page.getByText('Waiting for the senior resident to verify the contouring')).toBeVisible();
+
+    await logIn(page, 'real.senior');
+    await open(page);
+    await page.getByRole('button', { name: 'Verify contouring' }).click();
+    await expect(page.getByText('Waiting for the consultant to approve the contouring')).toBeVisible();
+
+    await logIn(page, 'real.consultant');
+    await open(page);
+    await page.getByLabel('Comment (optional)').fill('Good.');
+    await page.getByRole('button', { name: 'Approve contouring' }).click();
+
+    await expect(page.getByText('Waiting for the physicist to build and submit the plan')).toBeVisible();
+    await expect(page.getByText('Contouring approved', { exact: true })).toBeVisible();
+    await expect(page.getByText('Contouring verified by senior resident', { exact: true })).toBeVisible();
   });
 });

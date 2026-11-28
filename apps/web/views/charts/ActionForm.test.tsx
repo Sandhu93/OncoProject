@@ -96,4 +96,58 @@ describe('ActionForm', () => {
     expect(screen.getByLabelText('Count')).toHaveValue('abc');
     expect(screen.getByLabelText(/Note/)).toHaveValue('kept');
   });
+
+  it('names the button "Send back" for a step that returns the chart, and asks for the reason', () => {
+    render(
+      <ActionForm
+        rtNumber="RT-1"
+        version={2}
+        action={{
+          action: 'RETURN_CONTOURING',
+          label: 'Send back to junior resident',
+          requiresReason: true,
+          checks: [],
+          fields: [{ key: 'reason', label: 'Why is it going back?', type: 'area', required: true }],
+        }}
+      />,
+    );
+
+    expect(screen.getByRole('button', { name: 'Send back' })).toBeInTheDocument();
+    expect(screen.getByLabelText('Why is it going back?')).toBeRequired();
+  });
+
+  it('lists the people to choose from in a staff field', () => {
+    render(
+      <ActionForm
+        rtNumber="RT-1"
+        version={2}
+        action={{
+          action: 'ASSIGN_CONTOURING',
+          label: 'Assign a junior resident',
+          requiresReason: false,
+          checks: [],
+          fields: [
+            {
+              key: 'resident',
+              label: 'Junior resident',
+              type: 'staff',
+              required: true,
+              staffRole: 'JUNIOR_RESIDENT',
+              default: 'b',
+              options: [
+                { value: 'a', label: 'Resident Anand' },
+                { value: 'b', label: 'Resident Bina' },
+              ],
+            },
+          ],
+        }}
+      />,
+    );
+
+    expect(screen.getByLabelText('Junior resident', { selector: 'select' })).toHaveValue('b');
+    expect(screen.getAllByRole('option').map(option => option.textContent)).toEqual([
+      'Resident Anand',
+      'Resident Bina',
+    ]);
+  });
 });

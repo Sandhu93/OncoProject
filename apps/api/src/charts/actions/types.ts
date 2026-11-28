@@ -25,6 +25,8 @@ export interface ActionContext {
 
 /** A form field plus the messages used when its limits are broken. */
 export interface FieldDef extends ActionField {
+  /** What to say when a required field is empty; otherwise "Enter <label>." */
+  requiredMessage?: string;
   minMessage?: string;
   maxMessage?: string;
   /** Required only when this returns true (for example a note that is needed only if treatment ended early). */
@@ -41,6 +43,11 @@ export interface ActionDefinition {
   ): Promise<FieldProblem[]> | FieldProblem[];
   /** One plain sentence for the history. */
   summary(values: Record<string, string>, context: ActionContext): string;
+  /**
+   * Extra facts worked out from what was submitted (for example the name of the chosen resident). They are kept
+   * on the chart and can be used by `summary`.
+   */
+  derive?(values: Record<string, string>, context: ActionContext): Promise<Record<string, string>>;
   /** A fact set to today's date when the step is done (e.g. `datesGivenOn`). */
   stamp?: string;
   /** Facts a "send back" removes, so what depended on them has to be done again. */
@@ -54,7 +61,7 @@ export interface ActionDefinition {
   /** Short references that are also kept in the chart's own columns. */
   columns?(
     values: Record<string, string>,
-  ): Partial<Record<'scan_reference' | 'contour_set_name' | 'plan_id', string>>;
+  ): Partial<Record<'scan_reference' | 'contour_set_name' | 'plan_id', string | null>>;
 }
 
 export interface StageInfo {

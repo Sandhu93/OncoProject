@@ -42,6 +42,7 @@ interface TransitionRow {
 /** Strips the server-only parts of a field before it is sent to a screen. */
 function toField(field: FieldDef): ActionField {
   const visible: Partial<FieldDef> = { ...field };
+  delete visible.requiredMessage;
   delete visible.minMessage;
   delete visible.maxMessage;
   delete visible.requiredWhen;
@@ -152,9 +153,10 @@ export class ChartActionsService {
           problems.length === 0 ? await (definition.validate?.(values, context) ?? []) : [];
         if (problems.length > 0 || extra.length > 0) refuse([...problems, ...extra]);
 
-        const summary = definition.summary(values, context);
+        const derived = (await definition.derive?.(values, context)) ?? {};
+        const summary = definition.summary({ ...values, ...derived }, context);
         const { reason, ...facts } = values;
-        const data: ChartData = { ...chart.data, ...facts };
+        const data: ChartData = { ...chart.data, ...facts, ...derived };
         if (definition.stamp) data[definition.stamp] = context.today;
         for (const cleared of definition.clear ?? []) delete data[cleared];
 
@@ -276,19 +278,40 @@ export class ChartActionsService {
     context: ActionContext,
     requiresReason: boolean,
   ): Promise<FieldDef[]> {
-    void db;
-    const fields = definition.fields(context);
+    const fields = await this.withStaff(db, definition.fields(context));
     if (requiresReason && !fields.some((field) => field.key === 'reason')) {
       fields.unshift({
         key: 'reason',
         label: 'Why is it going back?',
         type: 'area',
         required: true,
+        requiredMessage: 'Say why it is going back.',
         maxLength: 500,
         placeholder: 'Tell them what to fix so they do not have to ask.',
       });
     }
     return fields;
+  }
+
+  /** Fills in the people to choose from for "staff" fields: active, available staff with the field's role. */
+  private async withStaff(db: Queryable, fields: FieldDef[]): Promise<FieldDef[]> {
+    const filled: FieldDef[] = [];
+    for (const field of fields) {
+      if (field.type !== 'staff' || !field.staffRole) {
+        filled.push(field);
+        continue;
+      }
+      const people = await db.query<{ id: string; full_name: string }>(
+        `SELECT u.id, u.full_name FROM staff_users u
+           JOIN staff_roles r ON r.staff_id = u.id AND r.role_code = $1
+          WHERE u.is_active AND u.is_available
+          ORDER BY u.full_name, u.id`,
+        [field.staffRole],
+      );
+      const options = people.rows.map((row) => ({ value: row.id, label: row.full_name }));
+      filled.push({ ...field, options, default: field.default ?? options[0]?.value });
+    }
+    return filled;
   }
 
   private async availableFor(

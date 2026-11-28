@@ -59,6 +59,10 @@ const staff = async (username, fullName, roles, capabilities = []) => {
 
 await staff('real.consultant', 'Real Test Consultant', ['CONSULTANT'], ['VIEW_AUDIT']);
 await staff('real.radiographer', 'Real Test Radiographer', ['RADIOGRAPHER']);
+await staff('real.junior', 'Real Junior Anand', ['JUNIOR_RESIDENT']);
+await staff('real.junior2', 'Real Junior Bina', ['JUNIOR_RESIDENT']);
+await staff('real.senior', 'Real Test Senior', ['SENIOR_RESIDENT']);
+await staff('real.physicist', 'Real Test Physicist', ['PHYSICIST']);
 await staff('real.locked', 'Real Test Locked', ['PHYSICIST']);
 
 const testingModule = await Test.createTestingModule({ imports: [AppModule] })

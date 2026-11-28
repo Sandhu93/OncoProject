@@ -170,7 +170,7 @@ export default function ActionForm({ rtNumber, version, action }: ActionFormProp
         disabled={pending}
         className="self-start rounded-md bg-zinc-900 px-4 py-2 font-medium text-white disabled:opacity-60 dark:bg-zinc-100 dark:text-zinc-900"
       >
-        {pending ? 'Saving…' : action.label}
+        {pending ? 'Saving…' : action.requiresReason ? 'Send back' : action.label}
       </button>
     </form>
   );

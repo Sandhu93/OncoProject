@@ -3,6 +3,13 @@ import {
   RECORD_CT_SIM_DONE,
   RECORD_MOULD_DONE,
 } from './definitions/getting-ready.js';
+import {
+  APPROVE_CONTOURING,
+  ASSIGN_CONTOURING,
+  RETURN_CONTOURING,
+  SUBMIT_CONTOURING,
+  VERIFY_CONTOURING,
+} from './definitions/contouring.js';
 import type { ActionDefinition } from './types.js';
 
 /**
@@ -14,4 +21,9 @@ export const CATALOGUE: Readonly<Record<string, ActionDefinition>> = {
   GIVE_SIMULATION_DATES,
   RECORD_MOULD_DONE,
   RECORD_CT_SIM_DONE,
+  ASSIGN_CONTOURING,
+  SUBMIT_CONTOURING,
+  VERIFY_CONTOURING,
+  APPROVE_CONTOURING,
+  RETURN_CONTOURING,
 };

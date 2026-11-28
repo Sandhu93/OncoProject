@@ -68,7 +68,11 @@ export function readValues(
     const required = field.required || field.requiredWhen?.(values) === true;
     if (value === '') {
       if (required)
-        problem(field.key, `Enter ${field.label.charAt(0).toLowerCase()}${field.label.slice(1)}.`);
+        problem(
+          field.key,
+          field.requiredMessage ??
+            `Enter ${field.label.charAt(0).toLowerCase()}${field.label.slice(1)}.`,
+        );
       delete values[field.key];
       continue;
     }
@@ -92,6 +96,7 @@ export function readValues(
         }
         break;
       case 'select':
+      case 'staff':
         if (!field.options?.some((option) => option.value === value))
           problem(field.key, 'Choose one of the options.');
         break;
