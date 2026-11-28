@@ -527,6 +527,65 @@ paths:
           description: STAFF_NOT_FOUND
         '409':
           description: DIRECTORY_ACCOUNT (its password is kept in the directory)
+  /reports:
+    get:
+      operationId: getReports
+      summary: Waiting time by stage, stalled charts and treatment completion
+      description: |
+        Needs EXPORT_REPORTS. `from` and `to` are YYYY-MM-DD in hospital time, both included; the default is the last 90
+        days up to today, and a range is at most 800 days. Waiting times and treatment cover the range; stalled charts
+        and the "waiting now" figures are as of now. Charts are named by RT number only.
+      security:
+        - bearer: []
+      parameters:
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200':
+          description: ReportsView
+        '400':
+          description: VALIDATION_FAILED, with details by field (`from`, `to`)
+        '403':
+          description: CAPABILITY_REQUIRED
+  /reports/export.xlsx:
+    get:
+      operationId: exportReportsWorkbook
+      summary: All three reports as one Excel workbook
+      description: Needs EXPORT_REPORTS. Same `from` and `to` as `/reports`.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: An .xlsx file (sheets About, Waiting time by stage, Stalled charts, Treatment completion)
+          content:
+            application/vnd.openxmlformats-officedocument.spreadsheetml.sheet:
+              schema: { type: string, format: binary }
+        '403':
+          description: CAPABILITY_REQUIRED
+  /reports/export/{name}:
+    get:
+      operationId: exportReportCsv
+      summary: One report as CSV
+      description: Needs EXPORT_REPORTS. Same `from` and `to` as `/reports`.
+      security:
+        - bearer: []
+      parameters:
+        - {
+            name: name,
+            in: path,
+            required: true,
+            schema: { type: string, enum: [waiting, stalled, treatment] },
+          }
+      responses:
+        '200':
+          description: UTF-8 CSV with a byte-order mark
+          content:
+            text/csv:
+              schema: { type: string }
+        '403':
+          description: CAPABILITY_REQUIRED
+        '404':
+          description: NO_SUCH_REPORT
   /admin/workflow:
     get:
       operationId: getActiveWorkflow

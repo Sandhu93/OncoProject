@@ -58,6 +58,7 @@ const staff = async (username, fullName, roles, capabilities = []) => {
 };
 
 await staff('real.consultant', 'Real Test Consultant', ['CONSULTANT'], ['MANAGE_STAFF', 'VIEW_AUDIT']);
+await staff('real.manager', 'Real Test Manager', ['CONSULTANT'], ['EXPORT_REPORTS', 'CONFIGURE_WORKFLOW']);
 await staff('real.radiographer', 'Real Test Radiographer', ['RADIOGRAPHER']);
 await staff('real.junior', 'Real Junior Anand', ['JUNIOR_RESIDENT']);
 await staff('real.junior2', 'Real Junior Bina', ['JUNIOR_RESIDENT']);

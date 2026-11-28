@@ -21,6 +21,7 @@
  * GET  /api/v1/admin/staff                 -> { items }; POST creates (400 VALIDATION_FAILED, 409 USERNAME_TAKEN);
  *     POST /admin/staff/:id changes one (409 CANNOT_SWITCH_OFF_SELF for the signed-in person); POST /admin/staff/:id/password
  * GET  /api/v1/admin/workflow, /api/v1/admin/audit?rt&action&person&from&to&limit&offset
+ * GET  /api/v1/reports?from&to, /reports/export.xlsx, /reports/export/:name (EXPORT_REPORTS)
  * GET/POST /api/v1/admin/workflow/draft, POST .../draft/edit|discard|approve (CONFIGURE_WORKFLOW)
  *     (403 CAPABILITY_REQUIRED for the token "resident-token")
  * GET  /revoked-tokens                    ->  tokens revoked so far, for assertions
@@ -35,7 +36,7 @@ const PROFILE = {
   username: 'synthetic.consultant',
   fullName: 'Synthetic Consultant',
   roles: ['CONSULTANT'],
-  capabilities: ['MANAGE_STAFF', 'VIEW_AUDIT', 'CONFIGURE_WORKFLOW'],
+  capabilities: ['MANAGE_STAFF', 'VIEW_AUDIT', 'CONFIGURE_WORKFLOW', 'EXPORT_REPORTS'],
 };
 
 const readJson = async request => {
@@ -201,6 +202,91 @@ const WORKFLOW = {
       requiresAssignment: false,
     },
   ],
+};
+
+const REPORTS = {
+  range: { from: '2026-09-01', to: '2026-11-28' },
+  stallDays: 3,
+  generatedAt: '2026-11-28T10:00:00.000Z',
+  waiting: [
+    {
+      stage: 'RT_CHART_ISSUED',
+      stageLabel: 'RT chart issued',
+      phase: 'Getting ready',
+      finished: 12,
+      medianDays: 2.5,
+      averageDays: 3.1,
+      ninetiethDays: 6.2,
+      longestDays: 9,
+      waitingNow: 2,
+      longestWaitingNowDays: 4.5,
+    },
+    {
+      stage: 'CONTOURING',
+      stageLabel: 'Contouring',
+      phase: 'Contouring',
+      finished: 0,
+      medianDays: null,
+      averageDays: null,
+      ninetiethDays: null,
+      longestDays: null,
+      waitingNow: 0,
+      longestWaitingNowDays: null,
+    },
+  ],
+  stalled: [
+    {
+      rtNumber: 'SEED-004',
+      stage: 'CONTOURING',
+      stageLabel: 'Contouring',
+      phase: 'Contouring',
+      daysInStage: 7,
+      priority: 'URGENT',
+      waitingFor: 'Waiting for the assigned junior resident to submit contouring',
+      owner: 'Junior resident',
+      assignedTo: 'Synthetic Resident',
+    },
+  ],
+  treatment: {
+    summary: {
+      started: 3,
+      inTreatment: 1,
+      finished: 1,
+      stopped: 1,
+      finishedShort: 1,
+      averageDaysTaken: 28,
+      sessionsGivenPercent: 80,
+    },
+    items: [
+      {
+        rtNumber: 'SEED-010',
+        outcome: 'FINISHED',
+        startedOn: '2026-10-01',
+        finishedOn: '2026-10-28',
+        daysTaken: 28,
+        plannedSessions: 25,
+        sessionsGiven: 20,
+      },
+      {
+        rtNumber: 'SEED-011',
+        outcome: 'IN_TREATMENT',
+        startedOn: '2026-11-10',
+        finishedOn: null,
+        daysTaken: null,
+        plannedSessions: 25,
+        sessionsGiven: 8,
+      },
+      {
+        rtNumber: 'SEED-012',
+        outcome: 'STOPPED',
+        startedOn: '2026-10-05',
+        finishedOn: null,
+        daysTaken: null,
+        plannedSessions: 25,
+        sessionsGiven: 5,
+      },
+    ],
+  },
 };
 
 let workflowDraft = null;
@@ -465,6 +551,41 @@ const server = createServer(async (request, response) => {
   const route = new URL(url, 'http://mock');
   const staffToken = bearer(request);
   const signedIn = staffToken && staffToken !== 'unknown-token' && !revokedTokens.has(staffToken);
+
+  if (route.pathname.startsWith('/api/v1/reports')) {
+    if (!signedIn) return unauthorized(response);
+
+    if (!profileFor(staffToken).capabilities.includes('EXPORT_REPORTS')) {
+      return refuse(response, 403, 'CAPABILITY_REQUIRED', 'You do not have permission to use this page.');
+    }
+
+    const from = route.searchParams.get('from') || REPORTS.range.from;
+    const to = route.searchParams.get('to') || REPORTS.range.to;
+
+    if (from > to) {
+      return refuse(response, 400, 'VALIDATION_FAILED', 'Some fields need attention.', [
+        { field: 'from', message: 'The start cannot be after the end.' },
+      ]);
+    }
+
+    if (route.pathname === '/api/v1/reports' && method === 'GET') {
+      return send(response, 200, { ...REPORTS, range: { from, to } });
+    }
+
+    if (route.pathname === '/api/v1/reports/export.xlsx' && method === 'GET') {
+      response.writeHead(200, { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+
+      return response.end(Buffer.from('PK-stand-in-workbook'));
+    }
+
+    const csv = /^\/api\/v1\/reports\/export\/(waiting|stalled|treatment)$/.exec(route.pathname);
+
+    if (csv && method === 'GET') {
+      response.writeHead(200, { 'Content-Type': 'text/csv; charset=utf-8' });
+
+      return response.end(`report,${csv[1]},${from},${to}\r\n`);
+    }
+  }
 
   if (route.pathname.startsWith('/api/v1/admin')) {
     if (!signedIn) return unauthorized(response);

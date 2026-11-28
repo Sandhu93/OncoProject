@@ -16,9 +16,10 @@ interface AppHeaderProps {
     | 'workflow'
     | 'staff'
     | 'audit'
+    | 'reports'
     | 'notifications';
   fullName: string;
-  /** What the person may do beyond their role. Staff and Audit show only to those who hold them. */
+  /** What the person may do beyond their role. Staff, Reports and Audit show only to those who hold them. */
   capabilities?: readonly StaffCapability[];
 }
 
@@ -31,6 +32,7 @@ const NAV = [
   { key: 'charts', href: '/charts', label: 'Charts' },
   { key: 'workflow', href: '/workflow', label: 'Workflow' },
   { key: 'staff', href: '/staff', label: 'Staff', needs: 'MANAGE_STAFF' },
+  { key: 'reports', href: '/reports', label: 'Reports', needs: 'EXPORT_REPORTS' },
   { key: 'audit', href: '/audit', label: 'Audit', needs: 'VIEW_AUDIT' },
 ] as const satisfies readonly { key: string; href: string; label: string; needs?: StaffCapability }[];
 

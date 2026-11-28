@@ -468,6 +468,82 @@ test.describe('WEB-092 changing the workflow', () => {
   });
 });
 
+test.describe('WEB-093 reports', () => {
+  test('someone without the permission is told so, and sees no Reports link', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!, 'resident-token');
+    await page.goto('/reports');
+    await expect(page.getByText('You do not have permission to read the reports')).toBeVisible();
+    await expect(page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports' })).toHaveCount(0);
+  });
+
+  test('shows the three reports with the dates they cover', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/charts');
+    await page.getByRole('navigation', { name: 'Main' }).getByRole('link', { name: 'Reports' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Reports', level: 1 })).toBeVisible();
+    await expect(page.getByLabel('From')).toHaveValue('2026-09-01');
+
+    const waiting = page.getByRole('table', { name: 'Waiting time by stage' });
+
+    await expect(waiting.getByRole('row', { name: /RT chart issued/ })).toContainText('2.5');
+    // A stage with nothing finished shows a dash, not a zero that looks like a measurement.
+    await expect(waiting.getByRole('row', { name: /Contouring/ })).toContainText('–');
+
+    const stalled = page.getByRole('table', { name: 'Stalled charts' });
+
+    await expect(stalled.getByRole('link', { name: 'SEED-004' })).toHaveAttribute('href', '/charts/SEED-004');
+    await expect(stalled).toContainText('Urgent');
+    await expect(stalled).toContainText('Synthetic Resident');
+
+    const summary = page.getByLabel('Treatment summary');
+
+    await expect(summary).toContainText('Finished with fewer sessions than planned');
+    await expect(summary).toContainText('80%');
+    await expect(page.getByRole('table', { name: 'Treatment completion' })).toContainText('20 of 25');
+  });
+
+  test('a range the API refuses is shown beside the dates', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/reports?from=2026-11-10&to=2026-11-01');
+
+    await expect(page.getByText('The start cannot be after the end.')).toBeVisible();
+    await expect(page.getByRole('table', { name: 'Waiting time by stage' })).toHaveCount(0);
+    await expect(page.getByLabel('From')).toHaveValue('2026-11-10');
+  });
+
+  test('downloads the workbook and each CSV for the dates shown', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/reports?from=2026-10-01&to=2026-10-31');
+
+    const [workbook] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('link', { name: 'Download all as a spreadsheet' }).click(),
+    ]);
+
+    expect(workbook.suggestedFilename()).toBe('oncotrack-reports-2026-10-01-to-2026-10-31.xlsx');
+
+    const [csv] = await Promise.all([
+      page.waitForEvent('download'),
+      page.getByRole('link', { name: 'Download as CSV' }).nth(1).click(),
+    ]);
+
+    expect(csv.suggestedFilename()).toBe('oncotrack-stalled-2026-10-01-to-2026-10-31.csv');
+
+    // The downloads carry the dates through to the API.
+    const body = await page.request.get('/reports/export?file=treatment&from=2026-10-01&to=2026-10-31');
+
+    expect(await body.text()).toBe('report,treatment,2026-10-01,2026-10-31\r\n');
+    expect((await page.request.get('/reports/export?file=nonsense')).status()).toBe(400);
+    expect((await page.request.get('/reports/export?file=xlsx&from=yesterday')).status()).toBe(400);
+  });
+
+  test('a download without the permission is refused', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!, 'resident-token');
+    expect((await page.request.get('/reports/export?file=xlsx')).status()).toBe(403);
+  });
+});
+
 test.describe('WEB-090 staff, workflow and audit', () => {
   test('the nav shows Staff and Audit only to those who hold them', async ({ context, baseURL, page }) => {
     await signIn(context, baseURL!);

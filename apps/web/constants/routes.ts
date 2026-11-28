@@ -21,6 +21,7 @@ export const PROTECTED_ROUTES = [
   '/workflow',
   '/staff',
   '/audit',
+  '/reports',
   '/notifications',
 ];
 

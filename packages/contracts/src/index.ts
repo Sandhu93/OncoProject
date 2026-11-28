@@ -503,3 +503,74 @@ export interface UpdateWorkflowDraftRequest {
   stages?: readonly { code: string; label?: string; weeklyUpdateRoles?: readonly ClinicalRole[] }[];
   steps?: readonly { from: string; action: string; roles: readonly ClinicalRole[] }[];
 }
+
+/** The dates a report covers, as YYYY-MM-DD in hospital time. Both ends are included. */
+export interface ReportRange {
+  from: string;
+  to: string;
+}
+
+/** How long charts waited in one stage. Times are whole and part days. Only stays that have ended count towards the averages. */
+export interface WaitingTimeRow {
+  stage: string;
+  stageLabel: string;
+  phase: string | null;
+  /** Stays that began in the range and have ended. */
+  finished: number;
+  medianDays: number | null;
+  averageDays: number | null;
+  /** Nine in ten finished stays were this short or shorter. */
+  ninetiethDays: number | null;
+  longestDays: number | null;
+  /** Charts that are in this stage now (any time), and the longest of those. */
+  waitingNow: number;
+  longestWaitingNowDays: number | null;
+}
+
+export interface StalledChartRow {
+  rtNumber: string;
+  stage: string;
+  stageLabel: string;
+  phase: string | null;
+  daysInStage: number;
+  priority: string;
+  /** Plain words for what the chart is waiting for. */
+  waitingFor: string;
+  /** The role that takes the next step. */
+  owner: string | null;
+  /** The junior resident contouring it, when that is the stage. */
+  assignedTo: string | null;
+}
+
+export interface TreatmentRow {
+  rtNumber: string;
+  outcome: 'IN_TREATMENT' | 'FINISHED' | 'STOPPED';
+  startedOn: string;
+  finishedOn: string | null;
+  daysTaken: number | null;
+  plannedSessions: number | null;
+  sessionsGiven: number | null;
+}
+
+export interface TreatmentSummary {
+  started: number;
+  inTreatment: number;
+  finished: number;
+  stopped: number;
+  /** Finished with fewer sessions than planned. */
+  finishedShort: number;
+  averageDaysTaken: number | null;
+  /** Of the finished charts that had a plan: sessions given as a share of sessions planned, in whole per cent. */
+  sessionsGivenPercent: number | null;
+}
+
+export interface ReportsView {
+  range: ReportRange;
+  /** Days in one stage after which a chart counts as stalled. */
+  stallDays: number;
+  /** When the figures were read, ISO 8601. */
+  generatedAt: string;
+  waiting: readonly WaitingTimeRow[];
+  stalled: readonly StalledChartRow[];
+  treatment: { summary: TreatmentSummary; items: readonly TreatmentRow[] };
+}
