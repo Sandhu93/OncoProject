@@ -252,6 +252,8 @@ export interface ChartDetail extends ChartSummary {
   weekly: WeeklyStatus | null;
   /** Steps the signed-in person may take now: empty when it is someone else's turn. */
   availableActions: readonly AvailableAction[];
+  /** Consultant overrides (reassign, return to an earlier stage, discontinue, reopen); empty for everyone else. */
+  controls: readonly AvailableAction[];
 }
 
 export interface ChartList {
@@ -310,7 +312,7 @@ export interface ChartQueue {
 /** One line in a person's inbox. */
 export interface NotificationItem {
   id: string;
-  /** YOUR_TURN, SENT_BACK, ASSIGNED, STALLED, WEEKLY_DUE, COMMENT or FINISHED. */
+  /** YOUR_TURN, SENT_BACK, ASSIGNED, REASSIGNED, DISCONTINUED, STALLED, WEEKLY_DUE, COMMENT or FINISHED. */
   kind: string;
   message: string;
   rtNumber: string | null;

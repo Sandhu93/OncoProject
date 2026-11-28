@@ -63,6 +63,8 @@ describe('ChartService.find', () => {
         ...summary,
         recorded: [],
         weekly: null,
+        comments: [],
+        controls: [],
         availableActions: [],
         history: [
           {
@@ -109,6 +111,8 @@ describe('ChartService.perform', () => {
       ...summary,
       recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
       weekly: null,
+      comments: [],
+      controls: [],
       availableActions: [{ action: 'A', label: 'Do A', requiresReason: false, fields: [field], checks: [] }],
       history: [],
     }) as { availableActions: { fields: unknown[] }[] };

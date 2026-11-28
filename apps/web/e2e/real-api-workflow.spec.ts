@@ -432,3 +432,48 @@ test.describe('WEB-056 notifications follow the workflow', () => {
     await expect(page.getByRole('heading', { name: rtNumber })).toBeVisible();
   });
 });
+
+test.describe('WEB-056 consultant controls', () => {
+  const rtNumber = `WF/${STAMP}/C`;
+  const open = (page: import('@playwright/test').Page) => page.goto(`/charts/${encodeURIComponent(rtNumber)}`);
+
+  test('only a consultant sees the controls', async ({ page, request }) => {
+    await request.post(`${CONTROL}/activate-workflow`);
+    await logIn(page, 'real.consultant');
+    await page.goto('/charts/new');
+    await page.getByLabel('RT number').fill(rtNumber);
+    await page.getByLabel('Planned sessions').fill('20');
+    await page.getByRole('button', { name: 'Issue chart' }).click();
+    await expect(page).toHaveURL(`/charts/${encodeURIComponent(rtNumber)}`);
+    await expect(page.getByRole('heading', { name: 'Consultant controls' })).toBeVisible();
+
+    await logIn(page, 'real.radiographer');
+    await open(page);
+    await expect(page.getByRole('heading', { name: 'Consultant controls' })).toHaveCount(0);
+  });
+
+  test('a consultant discontinues the chart with a reason, then reopens it', async ({ page }) => {
+    await logIn(page, 'real.consultant');
+    await open(page);
+
+    await page.locator('summary', { hasText: 'Discontinue this chart' }).click();
+    await page.getByRole('button', { name: 'Discontinue this chart' }).click();
+    await expect(page.getByText('Say why it is being discontinued.')).toBeVisible();
+
+    await page.getByLabel('Why is it being discontinued?').fill('Patient chose treatment elsewhere.');
+    await page.getByRole('button', { name: 'Discontinue this chart' }).click();
+
+    await expect(page.getByText(/discontinued/).first()).toBeVisible();
+    await expect(page.getByText('Nothing more to do: tracking ends here.')).toBeVisible();
+    await expect(page.getByRole('row', { name: /Chart discontinued/ })).toContainText(
+      'Patient chose treatment elsewhere.',
+    );
+
+    await page.locator('summary', { hasText: 'Reopen this discontinued chart' }).click();
+    await page.getByLabel('Why is it being reopened?').fill('Patient came back.');
+    await page.getByRole('button', { name: 'Reopen this discontinued chart' }).click();
+
+    await expect(page.getByText('Waiting for the radiographer to give mould and CT Sim dates')).toBeVisible();
+    await expect(page.getByRole('row', { name: /Chart reopened/ })).toContainText('Patient came back.');
+  });
+});

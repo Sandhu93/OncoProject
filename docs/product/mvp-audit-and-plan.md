@@ -49,5 +49,5 @@ M11 to M13 come first. After them, a chart can be passed on, discussed, correcte
 ## Decisions needed
 
 - **Notification channel:** in the app only, or also email or SMS? Hospital IT policy decides.
-- **Who may override:** consultant only, or also the senior resident, for reassigning and holding?
+- **Who may override:** consultant only (decided). Built in M13: reassign the contouring resident, return to an earlier stage (before treatment starts), discontinue and reopen. Not built: reopening a chart whose tracking has ended, and correcting one recorded value in place (a chart is returned to the stage and the step done again).
 - **Confirm the workflow** (D-01, D-03, D-06, D-07), still waiting on the consultant.

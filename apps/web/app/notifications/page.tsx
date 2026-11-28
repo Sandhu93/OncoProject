@@ -19,6 +19,8 @@ export const dynamic = 'force-dynamic';
 const KIND_LABELS: Record<string, string> = {
   YOUR_TURN: 'Your turn',
   ASSIGNED: 'Assigned to you',
+  REASSIGNED: 'Taken off you',
+  DISCONTINUED: 'Discontinued',
   SENT_BACK: 'Sent back',
   STALLED: 'Waiting too long',
   WEEKLY_DUE: 'Saturday update',

@@ -82,6 +82,7 @@ const ChartDetailSchema = ChartSummarySchema.extend({
     })
     .nullable(),
   availableActions: z.array(AvailableActionSchema),
+  controls: z.array(AvailableActionSchema),
   history: z.array(
     z.object({
       action: z.string(),

@@ -523,6 +523,14 @@ components:
         - $ref: '#/components/schemas/ChartSummary'
         - type: object
           properties:
+            controls:
+              type: array
+              description: |
+                Consultant overrides, sent to the same endpoint as steps: REASSIGN_CONTOURING, RETURN_TO_STAGE,
+                DISCONTINUE_CHART, REOPEN_CHART. Each needs a `reason`. Empty for anyone who is not a consultant.
+              items:
+                type: object
+                description: Same shape as an entry of `availableActions`.
             comments:
               type: array
               description: The discussion, oldest first. A HANDOFF is the note left with a step that passed the chart on.

@@ -17,6 +17,7 @@ import { recordedFacts } from './actions/recorded.js';
 import type { ActionContext, ActionDefinition, ChartData, FieldDef } from './actions/types.js';
 import { NotificationService } from '../notifications/notification.service.js';
 import { ChartsService } from './charts.service.js';
+import { ChartControlsService } from './chart-controls.service.js';
 import { CommentsService, HANDOFF_MAX } from './comments.service.js';
 import { normaliseRtNumber } from './issue-chart.parse.js';
 
@@ -92,12 +93,14 @@ export class ChartActionsService {
     @Inject(ChartsService) private readonly charts: ChartsService,
     @Inject(NotificationService) private readonly notifications: NotificationService,
     @Inject(CommentsService) private readonly comments: CommentsService,
+    @Inject(ChartControlsService) private readonly controls: ChartControlsService,
   ) {}
 
   /** A chart with its history and the steps this person may take on it now. */
   async view(actor: Actor, rtNumber: string, db: Queryable = this.database): Promise<ChartDetail> {
     const base = await this.charts.readDetail(db, rtNumber);
     const state = await this.loadState(db, normaliseRtNumber(rtNumber), false);
+    const controls = await this.controls.availableFor(db, actor, state);
     const availableActions =
       state.status === 'OPEN'
         ? await this.availableFor(db, actor, state)
@@ -109,6 +112,7 @@ export class ChartActionsService {
       recorded: recordedFacts(state.data, state.planned_sessions),
       weekly,
       availableActions,
+      controls,
     };
   }
 
@@ -119,6 +123,11 @@ export class ChartActionsService {
     action: string,
     body: unknown,
   ) {
+    if (this.controls.isControl(action)) {
+      return this.controls.perform(actor, key, rtNumber, action, body, (tx) =>
+        this.view(actor, rtNumber, tx),
+      );
+    }
     const number = normaliseRtNumber(rtNumber);
     const input = (typeof body === 'object' && body !== null ? body : {}) as {
       expectedVersion?: unknown;
@@ -142,7 +151,9 @@ export class ChartActionsService {
           throw new DomainError(
             409,
             'CHART_CLOSED',
-            'This chart is closed, so no more steps can be recorded.',
+            chart.status === 'DISCONTINUED'
+              ? 'This chart was discontinued, so no more steps can be recorded.'
+              : 'This chart is closed, so no more steps can be recorded.',
           );
         }
         if (chart.version !== expectedVersion) {
@@ -290,7 +301,12 @@ export class ChartActionsService {
           ],
         );
         if (!keeps && handoffNote) {
-          await this.comments.addHandoff(tx, { chartId: chart.id, actor, body: handoffNote, stage: toStage });
+          await this.comments.addHandoff(tx, {
+            chartId: chart.id,
+            actor,
+            body: handoffNote,
+            stage: toStage,
+          });
         }
         if (!keeps) {
           await this.tellPeople(tx, {
@@ -354,7 +370,10 @@ export class ChartActionsService {
 
   /** The optional note a person leaves for whoever the chart goes to next; empty when there is none. */
   private readHandoffNote(submitted: unknown, allowed: boolean): string | null {
-    const values = (typeof submitted === 'object' && submitted !== null ? submitted : {}) as Record<string, unknown>;
+    const values = (typeof submitted === 'object' && submitted !== null ? submitted : {}) as Record<
+      string,
+      unknown
+    >;
     const raw = values[HANDOFF_KEY];
     if (!allowed || raw === undefined || raw === null) return null;
     if (typeof raw !== 'string') refuse([{ field: HANDOFF_KEY, message: 'Must be text.' }]);

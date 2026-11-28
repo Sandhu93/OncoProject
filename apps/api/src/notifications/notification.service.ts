@@ -124,7 +124,9 @@ export class NotificationService {
       : waiting
         ? `${input.rtNumber} is now at ${input.stageLabel}, waiting for ${waiting}.`
         : `${input.rtNumber} has moved to ${input.stageLabel}.`;
-    const note = input.handoffNote ? ` Note from ${input.actor.fullName}: ${preview(input.handoffNote)}` : '';
+    const note = input.handoffNote
+      ? ` Note from ${input.actor.fullName}: ${preview(input.handoffNote)}`
+      : '';
     await this.notify(
       db,
       {

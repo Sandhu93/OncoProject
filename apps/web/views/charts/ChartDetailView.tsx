@@ -28,6 +28,10 @@ const ACTION_LABELS: Record<string, string> = {
   POST_WEEKLY_UPDATE: 'Saturday update',
   COMPLETE_TREATMENT: 'Treatment finished',
   POST_FINAL_UPDATE: 'Final update',
+  REASSIGN_CONTOURING: 'Contouring reassigned',
+  RETURN_TO_STAGE: 'Returned to an earlier stage',
+  DISCONTINUE_CHART: 'Chart discontinued',
+  REOPEN_CHART: 'Chart reopened',
 };
 
 const actionLabel = (action: string) => ACTION_LABELS[action] ?? action.replaceAll('_', ' ').toLowerCase();
@@ -86,6 +90,26 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           <p className="text-sm text-zinc-600 dark:text-zinc-400">This step is not yours to take.</p>
         )}
       </section>
+
+      {chart.controls.length > 0 && (
+        <section aria-labelledby="controls" className="flex flex-col gap-3">
+          <h2 id="controls" className="text-lg font-medium">
+            Consultant controls
+          </h2>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            For putting right what went wrong. Each one needs a reason, is kept in the history, and tells the people it
+            affects.
+          </p>
+          {chart.controls.map(control => (
+            <details key={control.action} className="rounded-md border border-zinc-300 p-3 dark:border-zinc-700">
+              <summary className="cursor-pointer font-medium">{control.label}</summary>
+              <div className="mt-3">
+                <ActionForm rtNumber={chart.rtNumber} version={chart.version} action={control} />
+              </div>
+            </details>
+          ))}
+        </section>
+      )}
 
       {chart.recorded.length > 0 && (
         <section aria-labelledby="recorded" className="flex flex-col gap-3">

@@ -111,6 +111,7 @@ describe('ChartDetailView', () => {
     recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
     weekly: null,
     availableActions: [],
+    controls: [],
     comments: [
       {
         id: 'k1',

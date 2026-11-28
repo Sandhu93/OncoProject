@@ -167,6 +167,7 @@ const detail = (chart, token) => ({
   weekly: null,
   comments: comments.get(chart.rtNumber) ?? [],
   recorded: steps.has(chart.rtNumber) ? [{ label: 'Mould appointment', value: '2 Jan 2030, 10:00' }] : [],
+  controls: [],
   availableActions: chart.stage.code === 'RT_CHART_ISSUED' && profileFor(token) === PROFILE ? [GIVE_DATES] : [],
   history: [
     {

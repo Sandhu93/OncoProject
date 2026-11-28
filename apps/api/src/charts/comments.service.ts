@@ -21,7 +21,8 @@ interface CommentRow {
   created_at: Date | string;
 }
 
-const iso = (value: Date | string) => (value instanceof Date ? value : new Date(value)).toISOString();
+const iso = (value: Date | string) =>
+  (value instanceof Date ? value : new Date(value)).toISOString();
 
 /** The discussion on a chart: comments from anyone signed in, and the notes left when a chart is passed on. */
 @Injectable()
@@ -81,7 +82,10 @@ export class CommentsService {
     else if (text.length > COMMENT_MAX) {
       problems.push({ field: 'body', message: `Keep it to ${COMMENT_MAX} characters or fewer.` });
     }
-    const forRole = input.forRole === undefined || input.forRole === null || input.forRole === '' ? null : input.forRole;
+    const forRole =
+      input.forRole === undefined || input.forRole === null || input.forRole === ''
+        ? null
+        : input.forRole;
     if (forRole !== null && !(CLINICAL_ROLES as readonly unknown[]).includes(forRole)) {
       problems.push({ field: 'forRole', message: 'Choose a role from the list.' });
     }
