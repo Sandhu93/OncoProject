@@ -8,6 +8,7 @@ import ChartDetailView from './ChartDetailView';
 import ChartFilters from './ChartFilters';
 import ChartTable from './ChartTable';
 import Pagination from './Pagination';
+import StageStrip from './StageStrip';
 
 const chart = (change: Partial<ChartSummary> = {}): ChartSummary => ({
   id: 'c1',
@@ -231,5 +232,23 @@ describe('AppHeader', () => {
     expect(within(drawer).getByRole('link', { name: 'Stages' })).toBeInTheDocument();
     expect(within(drawer).getByRole('button', { name: 'Log out' })).toBeInTheDocument();
     expect(within(drawer).getByRole('searchbox', { name: 'Find a chart' })).toBeInTheDocument();
+  });
+});
+
+describe('StageStrip', () => {
+  const stages = [
+    { code: 'A', label: 'Issued', phase: 'Getting ready', position: 1, open: 0, stalled: 0, charts: [] },
+    { code: 'B', label: 'Mould done', phase: 'Getting ready', position: 2, open: 0, stalled: 0, charts: [] },
+    { code: 'C', label: 'Contouring', phase: 'Contouring', position: 3, open: 0, stalled: 0, charts: [] },
+    { code: 'D', label: 'Treatment', phase: 'Treatment', position: 4, open: 0, stalled: 0, charts: [] },
+  ];
+
+  it('marks finished phases, the current one and those to come, in words as well as colour', () => {
+    render(<StageStrip stages={stages} currentCode="C" currentLabel="Contouring" />);
+
+    expect(screen.getByText('Getting ready').closest('li')).toHaveTextContent('(done)');
+    expect(screen.getByText('Contouring').closest('li')).toHaveAttribute('aria-current', 'step');
+    expect(screen.getByText('Treatment').closest('li')).toHaveTextContent('(still to come)');
+    expect(screen.getByText('Stage 3 of 4: Contouring')).toBeInTheDocument();
   });
 });

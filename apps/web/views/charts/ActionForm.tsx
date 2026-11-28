@@ -125,7 +125,7 @@ export default function ActionForm({ rtNumber, version, action }: ActionFormProp
   const formId = `step-${action.action}`;
 
   return (
-    <form action={formAction} aria-labelledby={`${formId}-title`} className="flex max-w-lg flex-col gap-4" noValidate>
+    <form action={formAction} aria-labelledby={`${formId}-title`} className="flex max-w-xl flex-col gap-4" noValidate>
       <h3 id={`${formId}-title`} className="text-base font-semibold">
         {action.label}
       </h3>
@@ -153,26 +153,39 @@ export default function ActionForm({ rtNumber, version, action }: ActionFormProp
         </p>
       )}
 
-      {action.fields.map(field =>
-        field.type === 'heading' ? (
-          <h4 key={field.key} className="pt-2 text-sm font-semibold">
-            {field.label}
-          </h4>
-        ) : (
-          <Field
-            key={field.key}
-            field={field}
-            formId={formId}
-            value={state.values?.[field.key]}
-            errors={state.fieldErrors?.[field.key]}
-          />
-        ),
-      )}
+      {action.fields.map(field => {
+        if (field.type === 'heading') {
+          return (
+            <h4 key={field.key} className="pt-2 text-sm font-semibold">
+              {field.label}
+            </h4>
+          );
+        }
+
+        const errors = state.fieldErrors?.[field.key];
+        const entry = <Field field={field} formId={formId} value={state.values?.[field.key]} errors={errors} />;
+
+        // A note nobody has to write stays folded until they want it; a mistake in it opens it.
+        if (field.type === 'area' && !field.required && /note/i.test(field.key)) {
+          const lower = field.label.charAt(0).toLowerCase() + field.label.slice(1);
+
+          return (
+            <details key={field.key} open={Boolean(errors) || Boolean(state.values?.[field.key])}>
+              <summary className="flex min-h-11 cursor-pointer items-center text-[15px] font-semibold text-brand">
+                Add {lower.startsWith('note') ? `a ${lower}` : lower}
+              </summary>
+              {entry}
+            </details>
+          );
+        }
+
+        return <div key={field.key}>{entry}</div>;
+      })}
 
       <button
         type="submit"
         disabled={pending}
-        className="self-start min-h-11 rounded-[10px] bg-brand px-5 py-2 font-medium text-brand-ink disabled:opacity-60 hover:opacity-90"
+        className="min-h-11 w-full rounded-[10px] sm:w-auto sm:self-start bg-brand px-5 py-2 font-medium text-brand-ink disabled:opacity-60 hover:opacity-90"
       >
         {pending ? 'Saving…' : action.requiresReason ? 'Send back' : action.label}
       </button>

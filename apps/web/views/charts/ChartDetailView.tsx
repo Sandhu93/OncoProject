@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import type { ChartDetail } from '@oncotrack/contracts';
+import type { ChartDetail, StageSummary } from '@oncotrack/contracts';
 
 import { formatDateTime, formatDay, formatDuration } from '@/utils/format';
 import { ROLE_LABELS } from '@/utils/labels';
@@ -8,6 +8,7 @@ import { ROLE_LABELS } from '@/utils/labels';
 import ActionForm from './ActionForm';
 import CommentForm from './CommentForm';
 import PriorityBadge from './PriorityBadge';
+import StageStrip from './StageStrip';
 
 const ACTION_LABELS: Record<string, string> = {
   ISSUE_CHART: 'Chart issued',
@@ -47,14 +48,26 @@ function Fact({ label, children }: { label: string; children: React.ReactNode })
 
 const orDash = (value: string | number | null) => (value === null || value === '' ? '—' : value);
 
-export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
+export default function ChartDetailView({
+  chart,
+  stages = [],
+}: {
+  chart: ChartDetail;
+  /** The workflow's stages, for the progress strip; left out, the strip is not drawn. */
+  stages?: readonly StageSummary[];
+}) {
+  const yourTurn = chart.availableActions.length > 0;
+
   return (
     <article className="flex flex-col gap-8">
       <div className="flex flex-col gap-2">
-        <Link href="/charts" className="text-sm underline underline-offset-4">
+        <Link href="/charts" className="inline-block self-start py-1 text-sm font-medium text-brand hover:underline">
           ← All charts
         </Link>
-        <h1 className="font-mono text-2xl font-semibold">{chart.rtNumber}</h1>
+        <div className="flex flex-wrap items-center gap-3">
+          <h1 className="font-mono text-[1.625rem] font-bold leading-tight sm:text-3xl">{chart.rtNumber}</h1>
+          <PriorityBadge priority={chart.priority} />
+        </div>
         <p className="text-muted">
           {chart.stage.label} for {formatDuration(chart.minutesInStage)}
           {chart.phase && ` · ${chart.phase}`}
@@ -62,9 +75,16 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         </p>
       </div>
 
-      <section aria-labelledby="next" className="flex flex-col gap-3">
-        <h2 id="next" className="text-lg font-medium">
-          What happens next
+      {stages.length > 0 && (
+        <StageStrip stages={stages} currentCode={chart.stage.code} currentLabel={chart.stage.label} />
+      )}
+
+      <section
+        aria-labelledby="next"
+        className={`flex flex-col gap-4 rounded-xl border bg-surface p-5 sm:p-6 ${yourTurn ? 'border-2 border-brand' : 'border-line'}`}
+      >
+        <h2 id="next" className="text-xl font-bold">
+          {yourTurn ? 'Your turn' : 'What happens next'}
         </h2>
         {chart.status === 'OPEN' && chart.waitingFor ? (
           <p>
@@ -86,6 +106,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         {chart.availableActions.map(action => (
           <ActionForm key={action.action} rtNumber={chart.rtNumber} version={chart.version} action={action} />
         ))}
+        {yourTurn && <p className="text-sm text-muted">Take your time. Nothing is sent until you press the button.</p>}
         {chart.availableActions.length === 0 && chart.ownerRole && (
           <p className="text-sm text-muted">This step is not yours to take.</p>
         )}
@@ -93,7 +114,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
 
       {chart.controls.length > 0 && (
         <section aria-labelledby="controls" className="flex flex-col gap-3">
-          <h2 id="controls" className="text-lg font-medium">
+          <h2 id="controls" className="text-lg font-semibold">
             Consultant controls
           </h2>
           <p className="text-sm text-muted">
@@ -102,7 +123,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           </p>
           {chart.controls.map(control => (
             <details key={control.action} className="rounded-md border border-zinc-300 p-3 dark:border-zinc-700">
-              <summary className="cursor-pointer font-medium">{control.label}</summary>
+              <summary className="flex min-h-11 cursor-pointer items-center font-medium">{control.label}</summary>
               <div className="mt-3">
                 <ActionForm rtNumber={chart.rtNumber} version={chart.version} action={control} />
               </div>
@@ -113,7 +134,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
 
       {chart.recorded.length > 0 && (
         <section aria-labelledby="recorded" className="flex flex-col gap-3">
-          <h2 id="recorded" className="text-lg font-medium">
+          <h2 id="recorded" className="text-lg font-semibold">
             Recorded so far
           </h2>
           <dl className="grid gap-4 sm:grid-cols-2">
@@ -126,11 +147,11 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         </section>
       )}
 
-      <section aria-labelledby="details" className="flex flex-col gap-3">
-        <h2 id="details" className="text-lg font-medium">
-          Details
-        </h2>
-        <dl className="grid gap-4 sm:grid-cols-2">
+      <details open className="rounded-xl border border-line bg-surface">
+        <summary className="flex min-h-11 cursor-pointer items-center px-5 py-3 text-lg font-semibold">
+          About this chart
+        </summary>
+        <dl className="grid gap-4 px-5 pb-5 sm:grid-cols-2">
           <Fact label="Current stage">{chart.stage.label}</Fact>
           <Fact label="In this stage since">{formatDateTime(chart.stageSince)}</Fact>
           <Fact label="Priority">
@@ -142,10 +163,10 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           <Fact label="Scan reference">{orDash(chart.scanReference)}</Fact>
           <Fact label="Issued by">{chart.issuedBy}</Fact>
         </dl>
-      </section>
+      </details>
 
       <section aria-labelledby="discussion" className="flex flex-col gap-3">
-        <h2 id="discussion" className="text-lg font-medium">
+        <h2 id="discussion" className="text-lg font-semibold">
           Discussion
         </h2>
         {chart.comments.length === 0 ? (
@@ -174,7 +195,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
       </section>
 
       <section aria-labelledby="history" className="flex flex-col gap-3">
-        <h2 id="history" className="text-lg font-medium">
+        <h2 id="history" className="text-lg font-semibold">
           History
         </h2>
         <div className="overflow-x-auto">

@@ -132,7 +132,7 @@ test.describe('WEB-032 issuing a chart', () => {
     await expect(page).toHaveURL('/charts/E2E-ISSUE-1');
     await expect(page.getByRole('heading', { name: 'E2E-ISSUE-1', level: 1 })).toBeVisible();
     await expect(page.getByText('PLAN-9')).toBeVisible();
-    await expect(page.getByText('Urgent')).toBeVisible();
+    await expect(page.getByText('Urgent').first()).toBeVisible();
   });
 
   test('says what to fix without sending anything, and keeps what was typed', async ({ page }) => {
@@ -209,6 +209,7 @@ test.describe('WEB-050 recording a workflow step', () => {
       page.getByText('Waiting for the radiographer to give mould and CT Sim dates (Radiographer).'),
     ).toBeVisible();
     await expect(page.getByRole('form', { name: 'Give mould and CT Sim dates' })).toBeVisible();
+    await page.getByText('Add a note').click();
     await expect(page.getByLabel('Note (optional)')).toHaveAccessibleDescription('Anything the patient should know.');
 
     await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
@@ -224,6 +225,7 @@ test.describe('WEB-050 recording a workflow step', () => {
   test('keeps what was typed and explains a field that needs attention', async ({ page }) => {
     await page.goto('/charts/STEP-2');
     await page.getByLabel('Mould date').fill('');
+    await page.getByText('Add a note').click();
     await page.getByLabel('Note (optional)').fill('Come early.');
     await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
 

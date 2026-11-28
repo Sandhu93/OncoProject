@@ -30,20 +30,21 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
 export default async function ChartPage({ params }: { params: Params }) {
   const rtNumber = readRtNumber((await params).rtNumber);
 
-  const [staff, chart] = await Promise.all([
+  const [staff, chart, queue] = await Promise.all([
     StaffService.me(),
     ChartService.find(rtNumber).catch((error: unknown) => {
       if (error instanceof ApiError && error.status === 404) notFound();
 
       throw error;
     }),
+    ChartService.queue(),
   ]);
 
   return (
     <>
       <AppHeader current="charts" fullName={staff.fullName} capabilities={staff.capabilities} />
-      <main id="main" className="mx-auto flex min-h-screen w-full max-w-3xl flex-col gap-6 px-4 py-5 sm:p-8">
-        <ChartDetailView chart={chart} />
+      <main id="main" className="mx-auto flex min-h-screen w-full max-w-4xl flex-col gap-6 px-4 py-5 sm:p-8">
+        <ChartDetailView chart={chart} stages={queue.stages} />
       </main>
     </>
   );

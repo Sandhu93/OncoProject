@@ -49,7 +49,9 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
     await logIn(page, 'real.radiographer');
     await page.goto(`/charts/${encodeURIComponent(rtNumber)}`);
 
+    await page.getByText(/^Add what the patient must do/).click();
     await page.getByLabel(/What the patient must do/).fill('Full bladder please.');
+    await page.getByText('Add a note for the next person').click();
     await page.getByLabel('Note for the next person').fill('Patient can only come in the mornings.');
     await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
 
@@ -195,6 +197,7 @@ test.describe('WEB-052 contouring: assign, submit, verify, approve, send back', 
 
     await logIn(page, 'real.consultant');
     await open(page);
+    await page.locator('summary', { hasText: 'Add comment' }).click();
     await page.getByLabel('Comment (optional)').fill('Good.');
     await page.getByRole('button', { name: 'Approve contouring' }).click();
 
@@ -219,6 +222,7 @@ test.describe('WEB-053 planning: plan, approve, send back, send to the LINAC', (
     await expect(page.getByLabel('Plan ID')).toHaveAccessibleDescription(/Enter plan ID\./);
 
     await page.getByLabel('Plan ID').fill('PLAN-5871');
+    await page.getByText('Add a note for the consultant').click();
     await page.getByLabel('Note for the consultant').fill('Two arcs.');
     await page.getByRole('button', { name: 'Submit plan for approval' }).click();
 
@@ -307,6 +311,7 @@ test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, fin
 
     await page.getByLabel('How was the patient told?').selectOption('In person');
     await page.getByLabel('Patient should arrive on').fill(istDay(1));
+    await page.locator('summary', { hasText: /^Add a note$/ }).click();
     await page.getByLabel(/^Note( \(optional\))?$/).fill('Came to the ward.');
     await page.getByRole('button', { name: 'Tell patient to come' }).click();
 
