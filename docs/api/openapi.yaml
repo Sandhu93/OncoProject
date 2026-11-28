@@ -468,6 +468,27 @@ paths:
           description: STAFF_NOT_FOUND
         '409':
           description: CANNOT_SWITCH_OFF_SELF, CANNOT_REMOVE_OWN_ACCESS or LAST_ADMINISTRATOR
+    delete:
+      operationId: deleteStaff
+      summary: Delete an account nothing was ever recorded against
+      description: |
+        Needs MANAGE_STAFF. Refused for an account with any history (HAS_HISTORY: switch it off instead), for yourself
+        (CANNOT_DELETE_SELF) and for the last account able to manage staff (LAST_ADMINISTRATOR). `canDelete` on
+        StaffMember says whether it would be allowed. The audit keeps STAFF_DELETED with what the account was.
+      security:
+        - bearer: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: The StaffMember that was deleted
+        '403':
+          description: CAPABILITY_REQUIRED
+        '404':
+          description: STAFF_NOT_FOUND
+        '409':
+          description: HAS_HISTORY, CANNOT_DELETE_SELF or LAST_ADMINISTRATOR
   /admin/staff/{id}/password:
     post:
       operationId: setStaffPassword

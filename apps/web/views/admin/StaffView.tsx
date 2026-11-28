@@ -3,7 +3,7 @@ import type { StaffMember } from '@oncotrack/contracts';
 import { formatDateTime } from '@/utils/format';
 import { CAPABILITY_LABELS, ROLE_LABELS } from '@/utils/labels';
 
-import { CreateStaffForm, EditStaffForm, PasswordForm } from './StaffForms';
+import { CreateStaffForm, DeleteStaffForm, EditStaffForm, PasswordForm } from './StaffForms';
 
 /** Everyone who can use OncoTrack, with the forms to change them. */
 export default function StaffView({ members, youId }: { members: readonly StaffMember[]; youId: string }) {
@@ -49,6 +49,7 @@ export default function StaffView({ members, youId }: { members: readonly StaffM
               <div className="mt-3 flex flex-col gap-6">
                 <EditStaffForm member={member} isYou={member.id === youId} />
                 <PasswordForm member={member} />
+                {member.canDelete && member.id !== youId && <DeleteStaffForm member={member} />}
               </div>
             </details>
           </li>

@@ -4,14 +4,19 @@ import userEvent from '@testing-library/user-event';
 import { describe, expect, it, vi } from 'vitest';
 
 import AppHeader from '@/views/layout/AppHeader';
-import { createStaff, setStaffPassword, updateStaff } from '@/app/staff/actions';
+import { createStaff, deleteStaff, setStaffPassword, updateStaff } from '@/app/staff/actions';
 
 import AuditView, { actionLabel } from './AuditView';
 import NoAccess from './NoAccess';
 import StaffView from './StaffView';
 import WorkflowView from './WorkflowView';
 
-vi.mock('@/app/staff/actions', () => ({ createStaff: vi.fn(), updateStaff: vi.fn(), setStaffPassword: vi.fn() }));
+vi.mock('@/app/staff/actions', () => ({
+  createStaff: vi.fn(),
+  updateStaff: vi.fn(),
+  setStaffPassword: vi.fn(),
+  deleteStaff: vi.fn(),
+}));
 vi.mock('@/app/notifications/actions', () => ({ getUnreadCount: vi.fn(() => Promise.resolve(0)) }));
 
 const member = (change: Partial<StaffMember>): StaffMember => ({
@@ -24,6 +29,7 @@ const member = (change: Partial<StaffMember>): StaffMember => ({
   isAvailable: true,
   createdAt: '2026-11-01T05:30:00.000Z',
   lastLoginAt: null,
+  canDelete: false,
   ...change,
 });
 
@@ -143,6 +149,31 @@ describe('StaffView', () => {
 
     expect(await within(saved).findByText(/Password set/)).toBeInTheDocument();
     expect(within(saved).getByLabelText('New password')).toHaveValue('');
+  });
+});
+
+describe('deleting an account', () => {
+  it('is offered only for an account with no history, never your own, and sends the id', async () => {
+    vi.mocked(deleteStaff).mockResolvedValue({ done: 'Deleted.' });
+    render(
+      <StaffView
+        members={[
+          member({ id: 'me', fullName: 'Admin Person', canDelete: true }),
+          member({ id: 'new', fullName: 'Never Used', canDelete: true }),
+          member({ id: 'used', fullName: 'Has History', canDelete: false }),
+        ]}
+        youId="me"
+      />,
+    );
+
+    expect(screen.queryByRole('form', { name: 'Delete Admin Person' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'Delete Has History' })).not.toBeInTheDocument();
+
+    const form = screen.getByRole('form', { name: 'Delete Never Used' });
+
+    await userEvent.setup().click(within(form).getByRole('button', { name: 'Delete this account' }));
+    expect(vi.mocked(deleteStaff).mock.calls[0]![1].get('id')).toBe('new');
+    expect(await within(form).findByText('Deleted.')).toBeInTheDocument();
   });
 });
 

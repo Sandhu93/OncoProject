@@ -23,6 +23,7 @@ const StaffMemberSchema = z.object({
   isAvailable: z.boolean(),
   createdAt: z.string(),
   lastLoginAt: z.string().nullable(),
+  canDelete: z.boolean(),
 });
 
 const WorkflowSchema = z.object({
@@ -125,6 +126,14 @@ export default class AdminService {
       method: 'POST',
       headers: { 'Idempotency-Key': idempotencyKey },
       body: JSON.stringify({ password }),
+      parse: data => StaffMemberSchema.parse(data),
+    });
+
+  static deleteStaff = (id: string, idempotencyKey: string) =>
+    handleRequest<StaffMember>(`/admin/staff/${encodeURIComponent(id)}`, {
+      requiresAuth: true,
+      method: 'DELETE',
+      headers: { 'Idempotency-Key': idempotencyKey },
       parse: data => StaffMemberSchema.parse(data),
     });
 

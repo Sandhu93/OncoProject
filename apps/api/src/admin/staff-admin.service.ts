@@ -29,10 +29,19 @@ interface Row {
   last_login: Date | string | null;
 }
 
+/** Rows that go with an account and are not history, so they are removed when it is deleted. */
+const CLEARED_WITH_ACCOUNT = new Set([
+  'staff_roles',
+  'staff_capabilities',
+  'staff_sessions',
+  'notifications',
+  'idempotency_records',
+]);
+
 const iso = (value: Date | string) =>
   (value instanceof Date ? value : new Date(value)).toISOString();
 
-const toMember = (row: Row): StaffMember => ({
+const toMember = (row: Row, used: ReadonlySet<string>): StaffMember => ({
   id: row.id,
   username: row.username,
   fullName: row.full_name,
@@ -42,6 +51,7 @@ const toMember = (row: Row): StaffMember => ({
   isAvailable: row.is_available,
   createdAt: iso(row.created_at),
   lastLoginAt: row.last_login ? iso(row.last_login) : null,
+  canDelete: !used.has(row.id),
 });
 
 const refuse = (problems: FieldProblem[]): never => {
@@ -80,7 +90,9 @@ export class StaffAdminService {
               (SELECT max(a.occurred_at) FROM audit_events a WHERE a.actor_id = u.id AND a.action = 'LOGIN_SUCCEEDED') AS last_login
          FROM staff_users u ORDER BY u.is_active DESC, u.full_name, u.id`,
     );
-    return found.rows.map(toMember);
+    const used = await this.usedIds(db);
+
+    return found.rows.map((row) => toMember(row, used));
   }
 
   async create(actor: Actor, key: string | undefined, body: unknown) {
@@ -293,6 +305,87 @@ export class StaffAdminService {
     );
   }
 
+  /** Removes an account nothing was ever recorded against. An account with history is switched off instead. */
+  async remove(actor: Actor, key: string | undefined, id: string) {
+    requireCapability(actor, 'MANAGE_STAFF');
+    this.requireKnownShape(id);
+
+    return this.commands.run(
+      actor,
+      { operation: 'staff.delete', key, payload: { id } },
+      async (tx, { requestId }) => {
+        const member = await this.one(tx, id, true);
+        if (!member) throw new DomainError(404, 'STAFF_NOT_FOUND', 'No such staff account.');
+        if (id === actor.id) {
+          throw new DomainError(409, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
+        }
+        if (!member.canDelete) {
+          throw new DomainError(
+            409,
+            'HAS_HISTORY',
+            'This account appears in the history, so it cannot be deleted. Switch it off instead.',
+          );
+        }
+        const others = await tx.query<{ n: number }>(
+          `SELECT count(*)::int AS n FROM staff_users u JOIN staff_capabilities c ON c.staff_id = u.id
+            WHERE u.id <> $1 AND u.is_active AND c.capability = 'MANAGE_STAFF'`,
+          [id],
+        );
+        if (others.rows[0]!.n === 0 && member.capabilities.includes('MANAGE_STAFF')) {
+          throw new DomainError(
+            409,
+            'LAST_ADMINISTRATOR',
+            'At least one active account must be able to manage staff.',
+          );
+        }
+        for (const table of CLEARED_WITH_ACCOUNT) {
+          const column =
+            table === 'notifications'
+              ? 'recipient_id'
+              : table === 'idempotency_records'
+                ? 'actor_id'
+                : 'staff_id';
+          await tx.query(`DELETE FROM ${table} WHERE ${column} = $1::uuid`, [id]);
+        }
+        await tx.query('DELETE FROM login_throttle WHERE username = $1', [member.username]);
+        await tx.query('DELETE FROM staff_users WHERE id = $1::uuid', [id]);
+        await this.audit(
+          tx,
+          actor,
+          requestId,
+          'STAFF_DELETED',
+          id,
+          {
+            username: member.username,
+            fullName: member.fullName,
+            roles: member.roles,
+            capabilities: member.capabilities,
+          },
+          null,
+        );
+
+        return { status: 200, body: member };
+      },
+    );
+  }
+
+  /** Ids of accounts that something in the system points at, other than rows that go with the account. */
+  private async usedIds(db: Queryable): Promise<Set<string>> {
+    const found = await db.query<{ tbl: string; col: string }>(
+      `SELECT c.conrelid::regclass::text AS tbl, a.attname AS col
+         FROM pg_constraint c
+         JOIN pg_attribute a ON a.attrelid = c.conrelid AND a.attnum = c.conkey[1]
+        WHERE c.contype = 'f' AND c.confrelid = 'staff_users'::regclass`,
+    );
+    const sources = found.rows
+      .filter((row) => !CLEARED_WITH_ACCOUNT.has(row.tbl))
+      .map((row) => `SELECT ${row.col}::text AS id FROM ${row.tbl} WHERE ${row.col} IS NOT NULL`);
+    if (sources.length === 0) return new Set();
+    const used = await db.query<{ id: string }>(sources.join(' UNION '));
+
+    return new Set(used.rows.map((row) => row.id));
+  }
+
   /** An id that is not even shaped like one cannot match anyone. */
   private requireKnownShape(id: string): void {
     if (!UUID.test(id)) throw new DomainError(404, 'STAFF_NOT_FOUND', 'No such staff account.');
@@ -311,7 +404,7 @@ export class StaffAdminService {
          FROM staff_users u WHERE u.id::text = $1`,
       [id],
     );
-    return found.rows[0] ? toMember(found.rows[0]) : null;
+    return found.rows[0] ? toMember(found.rows[0], await this.usedIds(db)) : null;
   }
 
   private async writeSets(

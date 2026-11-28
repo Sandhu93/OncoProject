@@ -111,7 +111,14 @@ const makeChart = (rtNumber, change = {}) => {
 
 const staffMembers = new Map(
   [
-    { ...PROFILE, isActive: true, isAvailable: true, createdAt: minutesAgo(5000), lastLoginAt: minutesAgo(10) },
+    {
+      ...PROFILE,
+      isActive: true,
+      isAvailable: true,
+      createdAt: minutesAgo(5000),
+      lastLoginAt: minutesAgo(10),
+      canDelete: false,
+    },
     {
       id: '00000000-0000-4000-8000-000000000002',
       username: 'synthetic.resident',
@@ -122,6 +129,7 @@ const staffMembers = new Map(
       isAvailable: true,
       createdAt: minutesAgo(5000),
       lastLoginAt: null,
+      canDelete: true,
     },
   ].map(member => [member.id, member]),
 );
@@ -441,6 +449,7 @@ const server = createServer(async (request, response) => {
         isAvailable: true,
         createdAt: new Date().toISOString(),
         lastLoginAt: null,
+        canDelete: true,
       };
 
       staffMembers.set(member.id, member);
@@ -449,6 +458,23 @@ const server = createServer(async (request, response) => {
     }
 
     const staffRoute = route.pathname.match(/^\/api\/v1\/admin\/staff\/([^/]+)(\/password)?$/);
+
+    if (staffRoute && !staffRoute[2] && method === 'DELETE') {
+      if (!need('MANAGE_STAFF')) return;
+
+      const member = staffMembers.get(staffRoute[1]);
+
+      if (!member) return refuse(response, 404, 'STAFF_NOT_FOUND', 'No such staff account.');
+      if (member.id === PROFILE.id)
+        return refuse(response, 409, 'CANNOT_DELETE_SELF', 'You cannot delete your own account.');
+      if (!member.canDelete) {
+        return refuse(response, 409, 'HAS_HISTORY', 'This account appears in the history, so it cannot be deleted.');
+      }
+
+      staffMembers.delete(member.id);
+
+      return send(response, 200, member);
+    }
 
     if (staffRoute && method === 'POST') {
       if (!need('MANAGE_STAFF')) return;

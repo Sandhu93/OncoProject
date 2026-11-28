@@ -109,4 +109,30 @@ test.describe('WEB-091 staff management with the real API', () => {
     await expect(page.getByRole('list', { name: 'Stages' }).getByRole('heading')).toHaveCount(15);
     await expect(page.getByText('Give mould and CT Sim dates').first()).toBeVisible();
   });
+
+  test('an account never used can be deleted; one that signed in cannot', async ({ page }) => {
+    await logInAndWait(page, 'real.consultant');
+    await page.goto('/staff');
+
+    const form = page.getByRole('form', { name: 'Add an account' });
+    const name = `Entered By Mistake ${STAMP}`;
+
+    await form.getByRole('textbox', { name: 'Full name' }).fill(name);
+    await form.getByRole('textbox', { name: 'Username' }).fill(`real.mistake.${STAMP}`);
+    await form.getByLabel('First password').fill(FIRST_PASSWORD);
+    await form.getByRole('checkbox', { name: 'Physicist' }).check();
+    await form.getByRole('button', { name: 'Add account' }).click();
+
+    const mistake = page.getByRole('listitem').filter({ hasText: `real.mistake.${STAMP}` });
+
+    await mistake.getByText(`Change ${name}`).click();
+    await mistake.getByRole('button', { name: 'Delete this account' }).click();
+    await expect(page.getByRole('listitem').filter({ hasText: `real.mistake.${STAMP}` })).toHaveCount(0);
+
+    // The account that signed in earlier has history, so there is nothing to delete it with.
+    const used = page.getByRole('listitem').filter({ hasText: USERNAME });
+
+    await used.getByText(`Change ${FULL_NAME}`).click();
+    await expect(used.getByRole('button', { name: 'Delete this account' })).toHaveCount(0);
+  });
 });

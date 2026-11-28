@@ -390,6 +390,8 @@ export interface StaffMember {
   isAvailable: boolean;
   createdAt: string;
   lastLoginAt: string | null;
+  /** True only for an account nothing has ever been recorded against (a mistake, not a person with history). */
+  canDelete: boolean;
 }
 
 export interface CreateStaffRequest {

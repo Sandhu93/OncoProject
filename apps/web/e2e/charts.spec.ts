@@ -564,4 +564,32 @@ test.describe('WEB-090 staff, workflow and audit', () => {
     await page.getByRole('button', { name: 'Search' }).click();
     await expect(page.getByText('Nothing in the audit trail matches this search.')).toBeVisible();
   });
+
+  test('deletes an account that was never used, and offers nothing for one that was', async ({
+    context,
+    baseURL,
+    page,
+  }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/staff');
+
+    const form = page.getByRole('form', { name: 'Add an account' });
+
+    await form.getByRole('textbox', { name: 'Full name' }).fill('Entered By Mistake');
+    await form.getByRole('textbox', { name: 'Username' }).fill('e2e.delete.me');
+    await form.getByLabel('First password').fill('a long enough passphrase');
+    await form.getByRole('checkbox', { name: 'Physicist' }).check();
+    await form.getByRole('button', { name: 'Add account' }).click();
+
+    const person = page.getByRole('listitem').filter({ hasText: 'e2e.delete.me' });
+
+    await person.getByText('Change Entered By Mistake').click();
+    await person.getByRole('button', { name: 'Delete this account' }).click();
+    await expect(page.getByRole('listitem').filter({ hasText: 'e2e.delete.me' })).toHaveCount(0);
+
+    // Someone with a sign-in on record has history: no delete.
+    const used = page.getByRole('listitem').filter({ hasText: 'synthetic.consultant' });
+
+    await expect(used.getByRole('button', { name: 'Delete this account' })).toHaveCount(0);
+  });
 });

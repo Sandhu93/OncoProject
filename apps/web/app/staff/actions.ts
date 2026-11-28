@@ -93,3 +93,20 @@ export async function setStaffPassword(_previous: StaffFormState, formData: Form
 
   return { done: 'Password set. They have been signed out.' };
 }
+
+/** Deletes an account that nothing was ever recorded against. The API refuses any other. */
+export async function deleteStaff(_previous: StaffFormState, formData: FormData): Promise<StaffFormState> {
+  const id = String(formData.get('id') ?? '');
+
+  if (!id) return { message: 'This form is incomplete. Reload the page and try again.' };
+
+  try {
+    await AdminService.deleteStaff(id, randomUUID());
+  } catch (error) {
+    return fail(error, 'Deleting the account');
+  }
+
+  revalidatePath('/staff');
+
+  return { done: 'Deleted.' };
+}

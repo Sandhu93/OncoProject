@@ -289,6 +289,67 @@ describe('ADM-010 staff management, workflow view and audit viewer', () => {
     });
   });
 
+  describe('deleting an account', () => {
+    const remove = (id: string, key: string | null = randomUUID()) => {
+      const call = s
+        .http()
+        .delete(`/api/v1/admin/staff/${id}`)
+        .set('Authorization', `Bearer ${admin.token}`);
+      if (key) call.set('Idempotency-Key', key);
+      return call;
+    };
+
+    it('deletes an account nothing was ever recorded against, and says so in the audit', async () => {
+      const made = (
+        await create({
+          username: 'mistake.entry',
+          fullName: 'Entered By Mistake',
+          roles: ['RADIOGRAPHER'],
+          password: newPassword,
+        }).expect(201)
+      ).body as StaffMember;
+      expect(made.canDelete).toBe(true);
+      // A chart being issued tells radiographers, so this account has an inbox row. That is not history.
+      await s.issueChart('DEL-1');
+
+      const gone = await remove(made.id).expect(200);
+      expect(gone.body.username).toBe('mistake.entry');
+      expect((await members()).some((m) => m.id === made.id)).toBe(false);
+      await s
+        .http()
+        .post('/api/v1/auth/login')
+        .send({ username: 'mistake.entry', password: newPassword })
+        .expect(401);
+
+      const audit = await s.test.db.query<{ before_values: Record<string, unknown> }>(
+        "SELECT before_values FROM audit_events WHERE action = 'STAFF_DELETED' AND entity_id = $1",
+        [made.id],
+      );
+      expect(audit.rows[0]!.before_values).toMatchObject({ username: 'mistake.entry' });
+    });
+
+    it('refuses an account that appears in the history, and offers switching off instead', async () => {
+      const person = (await members()).find((m) => m.id === radiographer.id)!;
+      expect(person.canDelete).toBe(false);
+      const refused = await remove(radiographer.id).expect(409);
+      expect(refused.body.code).toBe('HAS_HISTORY');
+      expect((await members()).some((m) => m.id === radiographer.id)).toBe(true);
+    });
+
+    it('refuses yourself, a missing account and anyone without the permission', async () => {
+      expect((await remove(admin.id).expect(409)).body.code).toBe('CANNOT_DELETE_SELF');
+      await remove(randomUUID()).expect(404);
+      await remove('not-an-id').expect(404);
+      const denied = await s
+        .http()
+        .delete(`/api/v1/admin/staff/${randomUUID()}`)
+        .set('Authorization', `Bearer ${radiographer.token}`)
+        .set('Idempotency-Key', randomUUID())
+        .expect(403);
+      expect(denied.body.code).toBe('CAPABILITY_REQUIRED');
+    });
+  });
+
   describe('the workflow view', () => {
     it('shows the active workflow to any signed-in person, with every stage and step', async () => {
       const { workflow } = (await s.as(radiographer).get('/admin/workflow').expect(200)).body as {

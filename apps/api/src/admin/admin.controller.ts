@@ -1,4 +1,15 @@
-import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Headers,
+  Inject,
+  Param,
+  Post,
+  Query,
+  Res,
+} from '@nestjs/common';
 import type { AuditList, StaffMember, WorkflowView } from '@oncotrack/contracts';
 import { CurrentActor, type Actor } from '../auth/actor.js';
 import { AuditService, type AuditQuery } from './audit.service.js';
@@ -53,6 +64,16 @@ export class AdminController {
     @Res({ passthrough: true }) response: ResponseLike,
   ): Promise<StaffMember> {
     return this.reply(response, await this.staff.setPassword(actor, key, id, body));
+  }
+
+  @Delete('staff/:id')
+  async deleteStaff(
+    @CurrentActor() actor: Actor,
+    @Param('id') id: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ): Promise<StaffMember> {
+    return this.reply(response, await this.staff.remove(actor, key, id));
   }
 
   /** The workflow in use. Any signed-in person may read it. */

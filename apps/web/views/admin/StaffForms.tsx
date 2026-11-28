@@ -6,7 +6,7 @@ import { CLINICAL_ROLES, STAFF_CAPABILITIES, type StaffMember } from '@oncotrack
 
 import { CAPABILITY_LABELS, ROLE_LABELS } from '@/utils/labels';
 
-import { createStaff, setStaffPassword, type StaffFormState, updateStaff } from '@/app/staff/actions';
+import { createStaff, deleteStaff, setStaffPassword, type StaffFormState, updateStaff } from '@/app/staff/actions';
 
 const INPUT =
   'rounded-md border border-zinc-300 px-3 py-2 aria-invalid:border-red-600 dark:border-zinc-700 dark:bg-zinc-900';
@@ -254,6 +254,33 @@ export function PasswordForm({ member }: { member: StaffMember }) {
       <Messages state={state} />
       <button type="submit" disabled={pending} className={BUTTON}>
         {pending ? 'Setting…' : 'Set password'}
+      </button>
+    </form>
+  );
+}
+
+/** Delete an account that was never used. It asks first, and only appears for an account with no history. */
+export function DeleteStaffForm({ member }: { member: StaffMember }) {
+  const [state, formAction, pending] = useActionState<StaffFormState, FormData>(deleteStaff, {});
+
+  return (
+    <form
+      action={formAction}
+      aria-label={`Delete ${member.fullName}`}
+      className="flex max-w-lg flex-col gap-3 rounded-md border border-red-300 p-3 dark:border-red-900"
+    >
+      <input type="hidden" name="id" value={member.id} />
+      <p className="text-sm">
+        Nothing has ever been recorded against this account, so it can be deleted. This cannot be undone. An account
+        that has been used can only be switched off, so the history keeps its name.
+      </p>
+      <Messages state={state} />
+      <button
+        type="submit"
+        disabled={pending}
+        className="self-start rounded-md border border-red-700 px-4 py-2 text-red-700 disabled:opacity-60 dark:border-red-400 dark:text-red-400"
+      >
+        {pending ? 'Deleting…' : 'Delete this account'}
       </button>
     </form>
   );
