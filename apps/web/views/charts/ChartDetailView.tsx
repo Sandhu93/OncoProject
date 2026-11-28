@@ -6,6 +6,7 @@ import { formatDateTime, formatDay, formatDuration } from '@/utils/format';
 import { ROLE_LABELS } from '@/utils/labels';
 
 import ActionForm from './ActionForm';
+import CommentForm from './CommentForm';
 import PriorityBadge from './PriorityBadge';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -26,6 +27,7 @@ const ACTION_LABELS: Record<string, string> = {
   START_TREATMENT: 'Treatment started',
   POST_WEEKLY_UPDATE: 'Saturday update',
   COMPLETE_TREATMENT: 'Treatment finished',
+  POST_FINAL_UPDATE: 'Final update',
 };
 
 const actionLabel = (action: string) => ACTION_LABELS[action] ?? action.replaceAll('_', ' ').toLowerCase();
@@ -116,6 +118,35 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
           <Fact label="Scan reference">{orDash(chart.scanReference)}</Fact>
           <Fact label="Issued by">{chart.issuedBy}</Fact>
         </dl>
+      </section>
+
+      <section aria-labelledby="discussion" className="flex flex-col gap-3">
+        <h2 id="discussion" className="text-lg font-medium">
+          Discussion
+        </h2>
+        {chart.comments.length === 0 ? (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">No comments yet.</p>
+        ) : (
+          <ol aria-label="Comments, oldest first" className="flex flex-col gap-3">
+            {chart.comments.map(comment => (
+              <li
+                key={comment.id}
+                className="rounded-md border border-zinc-200 p-3 dark:border-zinc-800"
+                data-kind={comment.kind}
+              >
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  <span className="font-medium text-zinc-900 dark:text-zinc-100">{comment.authorName}</span> (
+                  {comment.authorRoles.map(role => ROLE_LABELS[role]).join(', ')}) · {formatDateTime(comment.createdAt)}{' '}
+                  · at {comment.stageLabel}
+                  {comment.kind === 'HANDOFF' && ' · note when passing the chart on'}
+                  {comment.forRole && ` · for ${ROLE_LABELS[comment.forRole]}`}
+                </p>
+                <p className="mt-1 whitespace-pre-wrap">{comment.body}</p>
+              </li>
+            ))}
+          </ol>
+        )}
+        <CommentForm rtNumber={chart.rtNumber} />
       </section>
 
       <section aria-labelledby="history" className="flex flex-col gap-3">

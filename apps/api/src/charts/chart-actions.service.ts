@@ -17,6 +17,7 @@ import { recordedFacts } from './actions/recorded.js';
 import type { ActionContext, ActionDefinition, ChartData, FieldDef } from './actions/types.js';
 import { NotificationService } from '../notifications/notification.service.js';
 import { ChartsService } from './charts.service.js';
+import { CommentsService, HANDOFF_MAX } from './comments.service.js';
 import { normaliseRtNumber } from './issue-chart.parse.js';
 
 const ROLE_WORDS: Record<string, string> = {
@@ -51,6 +52,11 @@ interface TransitionRow {
 
 const WEEKLY = 'POST_WEEKLY_UPDATE';
 const FINAL = 'POST_FINAL_UPDATE';
+const HANDOFF_KEY = 'handoffNote';
+
+/** Weekly and final updates are not handoffs, and a send-back already carries its reason. */
+const keepsStage = (transition: { action: string; requires_reason: boolean }) =>
+  transition.action === WEEKLY || transition.action === FINAL || transition.requires_reason;
 
 interface WeeklyStage {
   requires_weekly_update: boolean;
@@ -68,6 +74,16 @@ function toField(field: FieldDef): ActionField {
   return (field.requiredWhen ? { ...visible, required: false } : visible) as ActionField;
 }
 
+/** Offered on every step that passes a chart on; stored with the chart as a handoff note. */
+const HANDOFF_FIELD: ActionField = {
+  key: HANDOFF_KEY,
+  label: 'Note for the next person',
+  type: 'area',
+  required: false,
+  help: 'Optional. Operational notes only: no patient names or clinical details.',
+  maxLength: HANDOFF_MAX,
+};
+
 @Injectable()
 export class ChartActionsService {
   constructor(
@@ -75,6 +91,7 @@ export class ChartActionsService {
     @Inject(CommandService) private readonly commands: CommandService,
     @Inject(ChartsService) private readonly charts: ChartsService,
     @Inject(NotificationService) private readonly notifications: NotificationService,
+    @Inject(CommentsService) private readonly comments: CommentsService,
   ) {}
 
   /** A chart with its history and the steps this person may take on it now. */
@@ -88,6 +105,7 @@ export class ChartActionsService {
     const weekly = await this.weeklyStatus(db, state);
     return {
       ...base,
+      comments: await this.comments.list(db, base.id),
       recorded: recordedFacts(state.data, state.planned_sessions),
       weekly,
       availableActions,
@@ -179,6 +197,8 @@ export class ChartActionsService {
           problems.length === 0 ? await (definition.validate?.(values, context) ?? []) : [];
         if (problems.length > 0 || extra.length > 0) refuse([...problems, ...extra]);
 
+        const handoffNote = this.readHandoffNote(input.values, !keepsStage(transition));
+
         const derived = (await definition.derive?.(values, context)) ?? {};
         const summary = definition.summary({ ...values, ...derived }, context);
         const { reason, ...facts } = values;
@@ -269,8 +289,12 @@ export class ChartActionsService {
             keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
           ],
         );
+        if (!keeps && handoffNote) {
+          await this.comments.addHandoff(tx, { chartId: chart.id, actor, body: handoffNote, stage: toStage });
+        }
         if (!keeps) {
           await this.tellPeople(tx, {
+            handoffNote,
             actor,
             chart,
             eventId: event.rows[0]!.id,
@@ -296,6 +320,7 @@ export class ChartActionsService {
       toStage: string;
       reason: string | null;
       data: ChartData;
+      handoffNote?: string | null;
     },
   ): Promise<void> {
     const target = await tx.query<{ label: string; is_terminal: boolean }>(
@@ -322,8 +347,22 @@ export class ChartActionsService {
         stage: input.toStage,
         stageLabel: stage?.label ?? input.toStage,
         sentBackReason: input.reason,
+        handoffNote: input.handoffNote ?? null,
       });
     }
+  }
+
+  /** The optional note a person leaves for whoever the chart goes to next; empty when there is none. */
+  private readHandoffNote(submitted: unknown, allowed: boolean): string | null {
+    const values = (typeof submitted === 'object' && submitted !== null ? submitted : {}) as Record<string, unknown>;
+    const raw = values[HANDOFF_KEY];
+    if (!allowed || raw === undefined || raw === null) return null;
+    if (typeof raw !== 'string') refuse([{ field: HANDOFF_KEY, message: 'Must be text.' }]);
+    const note = (raw as string).trim();
+    if (note.length > HANDOFF_MAX) {
+      refuse([{ field: HANDOFF_KEY, message: `Keep it to ${HANDOFF_MAX} characters or fewer.` }]);
+    }
+    return note === '' ? null : note;
   }
 
   /** True when the other role has already posted its final update. */
@@ -503,11 +542,13 @@ export class ChartActionsService {
       if (transition.keeps_stage && (await postedThisWeek(context))) continue;
       if (transition.action === FINAL && (await postedFinal(context))) continue;
       const fields = await this.fieldsFor(db, definition, context, transition.requires_reason);
+      const shown = fields.map(toField);
+      if (!keepsStage(transition)) shown.push(HANDOFF_FIELD);
       available.push({
         action: transition.action,
         label: definition.label,
         requiresReason: transition.requires_reason,
-        fields: fields.map(toField),
+        fields: shown,
         checks: definition.checks?.(context) ?? [],
       });
     }

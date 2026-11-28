@@ -5,6 +5,7 @@ import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
 import { SessionService } from './auth/session.service.js';
 import { ChartActionsService } from './charts/chart-actions.service.js';
+import { CommentsService } from './charts/comments.service.js';
 import { QueueService } from './charts/queue.service.js';
 import { ChartsController } from './charts/charts.controller.js';
 import { ChartsService } from './charts/charts.service.js';
@@ -24,6 +25,7 @@ import { CommandService } from './transactions/command.service.js';
     CommandService,
     ChartsService,
     ChartActionsService,
+    CommentsService,
     QueueService,
     NotificationService,
     NotificationScheduler,

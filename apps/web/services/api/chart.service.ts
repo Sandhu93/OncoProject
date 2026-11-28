@@ -9,6 +9,7 @@ import {
   CLINICAL_ROLES,
   type IssueChartRequest,
   type PerformActionRequest,
+  type PostCommentRequest,
 } from '@oncotrack/contracts';
 import { z } from 'zod';
 
@@ -60,7 +61,19 @@ const AvailableActionSchema = z.object({
   checks: z.array(z.object({ label: z.string(), ok: z.boolean(), detail: z.string() })),
 });
 
+const ChartCommentSchema = z.object({
+  id: z.string(),
+  kind: z.enum(['COMMENT', 'HANDOFF']),
+  body: z.string(),
+  authorName: z.string(),
+  authorRoles: z.array(z.enum(CLINICAL_ROLES)),
+  forRole: z.enum(CLINICAL_ROLES).nullable(),
+  stageLabel: z.string(),
+  createdAt: z.string(),
+});
+
 const ChartDetailSchema = ChartSummarySchema.extend({
+  comments: z.array(ChartCommentSchema),
   recorded: z.array(z.object({ label: z.string(), value: z.string() })),
   weekly: z
     .object({
@@ -163,6 +176,16 @@ export default class ChartService {
         parse: data => ChartDetailSchema.parse(data),
       },
     );
+
+  /** Adds a comment to a chart's discussion. */
+  static comment = (rtNumber: string, payload: PostCommentRequest, idempotencyKey: string) =>
+    handleRequest<ChartDetail>(`/charts/by-number/${encodeURIComponent(rtNumber)}/comments`, {
+      requiresAuth: true,
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+      parse: data => ChartDetailSchema.parse(data),
+    });
 
   /** Issues a chart. The same `idempotencyKey` for the same details returns the first result instead of a second chart. */
   static issue = (payload: IssueChartRequest, idempotencyKey: string) =>

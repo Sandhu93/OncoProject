@@ -48,6 +48,10 @@ const toItem = (row: NotificationRow): NotificationItem => ({
  * transaction that records it, so a person is told if and only if the change really happened.
  * Reminders (stalled charts, Saturday updates) come from `sweep`, run on a timer.
  */
+/** The first part of a message, for a one-line notice. */
+const preview = (text: string, max = 200) =>
+  text.length <= max ? text : `${text.slice(0, max - 1).trimEnd()}…`;
+
 @Injectable()
 export class NotificationService {
   constructor(@Inject(DatabaseService) private readonly database: DatabaseService) {}
@@ -110,6 +114,7 @@ export class NotificationService {
       stageLabel: string;
       actor: Pick<Actor, 'id' | 'fullName'>;
       sentBackReason?: string | null;
+      handoffNote?: string | null;
     },
   ): Promise<void> {
     const waiting = STAGE_INFO[input.stage]?.waiting;
@@ -119,6 +124,7 @@ export class NotificationService {
       : waiting
         ? `${input.rtNumber} is now at ${input.stageLabel}, waiting for ${waiting}.`
         : `${input.rtNumber} has moved to ${input.stageLabel}.`;
+    const note = input.handoffNote ? ` Note from ${input.actor.fullName}: ${preview(input.handoffNote)}` : '';
     await this.notify(
       db,
       {
@@ -126,8 +132,51 @@ export class NotificationService {
         rtNumber: input.rtNumber,
         eventId: input.eventId,
         kind: sentBack ? 'SENT_BACK' : 'YOUR_TURN',
-        message,
+        message: message + note,
         recipients: await this.whoIsNext(db, input.chartId, input.stage),
+      },
+      [input.actor.id],
+    );
+  }
+
+  /** A comment: tell the role it is for, or whoever the chart is waiting for. */
+  async commentAdded(
+    db: Queryable,
+    input: {
+      chartId: string;
+      rtNumber: string;
+      eventId: string;
+      stage: string;
+      forRole: string | null;
+      actor: Pick<Actor, 'id' | 'fullName'>;
+      body: string;
+    },
+  ): Promise<void> {
+    let recipients: string[];
+    if (input.forRole === null) {
+      recipients = await this.whoIsNext(db, input.chartId, input.stage);
+    } else if (input.forRole === 'JUNIOR_RESIDENT') {
+      // The resident the chart is assigned to, if any, rather than every junior resident.
+      const assigned = await db.query<{ staff_id: string }>(
+        `SELECT staff_id FROM assignments WHERE chart_id = $1 AND task_code = 'CONTOURING' AND ended_at IS NULL`,
+        [input.chartId],
+      );
+      recipients =
+        assigned.rows.length > 0
+          ? assigned.rows.map((row) => row.staff_id)
+          : await this.staffWithRoles(db, ['JUNIOR_RESIDENT']);
+    } else {
+      recipients = await this.staffWithRoles(db, [input.forRole]);
+    }
+    await this.notify(
+      db,
+      {
+        chartId: input.chartId,
+        rtNumber: input.rtNumber,
+        eventId: input.eventId,
+        kind: 'COMMENT',
+        message: `${input.rtNumber}: ${input.actor.fullName} wrote: ${preview(input.body)}`,
+        recipients,
       },
       [input.actor.id],
     );

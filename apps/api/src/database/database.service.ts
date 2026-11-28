@@ -11,6 +11,7 @@ export const REQUIRED_MIGRATIONS = [
   '005_chart_actions.sql',
   '006_notifications.sql',
   '007_final_updates.sql',
+    '008_chart_comments.sql',
 ] as const;
 
 export type SqlParams = readonly unknown[];

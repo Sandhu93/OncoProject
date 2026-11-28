@@ -224,8 +224,29 @@ export interface WeeklyStatus {
   updates: readonly { role: ClinicalRole; posted: boolean }[];
 }
 
+/** A message on a chart: a comment anyone signed in can write, or the note left when a chart was passed on. */
+export interface ChartComment {
+  id: string;
+  kind: 'COMMENT' | 'HANDOFF';
+  body: string;
+  authorName: string;
+  authorRoles: readonly ClinicalRole[];
+  /** The role it is addressed to, when it was addressed to one. */
+  forRole: ClinicalRole | null;
+  stageLabel: string;
+  createdAt: string;
+}
+
+export interface PostCommentRequest {
+  body: string;
+  /** Optional: this role is notified. Without it, whoever the chart is waiting for is. */
+  forRole?: ClinicalRole | null;
+}
+
 export interface ChartDetail extends ChartSummary {
   history: readonly ChartHistoryEntry[];
+  /** The discussion, oldest first. */
+  comments: readonly ChartComment[];
   recorded: readonly RecordedFact[];
   /** Saturday updates due this week; null when the chart is not in a stage that asks for them. */
   weekly: WeeklyStatus | null;

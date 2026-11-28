@@ -31,6 +31,7 @@ const chart = (change: Partial<ChartSummary> = {}): ChartSummary => ({
 });
 
 vi.mock('@/app/charts/[rtNumber]/actions', () => ({ performAction: vi.fn() }));
+vi.mock('@/app/charts/[rtNumber]/comment-actions', () => ({ postComment: vi.fn() }));
 vi.mock('@/app/notifications/actions', () => ({ getUnreadCount: vi.fn(() => Promise.resolve(0)) }));
 
 describe('ChartTable', () => {
@@ -110,6 +111,28 @@ describe('ChartDetailView', () => {
     recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
     weekly: null,
     availableActions: [],
+    comments: [
+      {
+        id: 'k1',
+        kind: 'COMMENT',
+        body: 'Is the CT slot confirmed?',
+        authorName: 'Dr Asha Rao',
+        authorRoles: ['JUNIOR_RESIDENT'],
+        forRole: 'RADIOGRAPHER',
+        stageLabel: 'Contouring',
+        createdAt: '2026-11-27T19:40:00.000Z',
+      },
+      {
+        id: 'k2',
+        kind: 'HANDOFF',
+        body: 'Morning slots only.',
+        authorName: 'Radiographer One',
+        authorRoles: ['RADIOGRAPHER'],
+        forRole: null,
+        stageLabel: 'Dates given',
+        createdAt: '2026-11-27T19:50:00.000Z',
+      },
+    ],
     history: [
       {
         action: 'ISSUE_CHART',
@@ -133,6 +156,25 @@ describe('ChartDetailView', () => {
     expect(screen.getByText('PLAN-7')).toBeInTheDocument();
     expect(screen.getAllByText('—')).toHaveLength(2);
     expect(screen.getByText(/Contouring for 3 h 5 min/)).toBeInTheDocument();
+  });
+
+  it('shows the discussion, oldest first, with who it was for and handoff notes marked', () => {
+    render(<ChartDetailView chart={detail} />);
+
+    const items = within(screen.getByRole('list', { name: 'Comments, oldest first' })).getAllByRole('listitem');
+
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent('Dr Asha Rao');
+    expect(items[0]).toHaveTextContent('for Radiographer');
+    expect(items[0]).toHaveTextContent('Is the CT slot confirmed?');
+    expect(items[1]).toHaveTextContent('note when passing the chart on');
+    expect(screen.getByRole('form', { name: 'Add a comment' })).toBeInTheDocument();
+  });
+
+  it('says so when there are no comments', () => {
+    render(<ChartDetailView chart={{ ...detail, comments: [] }} />);
+
+    expect(screen.getByText('No comments yet.')).toBeInTheDocument();
   });
 
   it('lists the history in India Standard Time', () => {

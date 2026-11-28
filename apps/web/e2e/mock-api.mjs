@@ -16,6 +16,8 @@
  * POST /api/v1/charts/by-number/:rtNumber/actions/GIVE_SIMULATION_DATES   Idempotency-Key { expectedVersion, values }
  *     -> 200 chart at "Dates given"; 400 VALIDATION_FAILED when the mould date is empty; 409 CHART_CHANGED for
  *     the chart "CHANGED-1"; 403 for "resident-token". Only charts at "RT chart issued" offer this step.
+ * POST /api/v1/charts/by-number/:rtNumber/comments   Idempotency-Key { body, forRole? } -> 201 chart with the comment added;
+ *     400 VALIDATION_FAILED when the comment is empty
  * GET  /revoked-tokens                    ->  tokens revoked so far, for assertions
  */
 import { createServer } from 'node:http';
@@ -146,6 +148,7 @@ const seed = () => {
 seed();
 
 const steps = new Map();
+const comments = new Map();
 
 const GIVE_DATES = {
   action: 'GIVE_SIMULATION_DATES',
@@ -162,6 +165,7 @@ const GIVE_DATES = {
 const detail = (chart, token) => ({
   ...chart,
   weekly: null,
+  comments: comments.get(chart.rtNumber) ?? [],
   recorded: steps.has(chart.rtNumber) ? [{ label: 'Mould appointment', value: '2 Jan 2030, 10:00' }] : [],
   availableActions: chart.stage.code === 'RT_CHART_ISSUED' && profileFor(token) === PROFILE ? [GIVE_DATES] : [],
   history: [
@@ -376,6 +380,39 @@ const server = createServer(async (request, response) => {
       if (!chart) return refuse(response, 404, 'CHART_NOT_FOUND', `No chart has RT number ${byNumber[1]}.`);
 
       return send(response, 200, detail(chart, staffToken));
+    }
+
+    const commentRoute = route.pathname.match(/^\/api\/v1\/charts\/by-number\/(.+)\/comments$/);
+
+    if (method === 'POST' && commentRoute) {
+      const chart = charts.get(decodeURIComponent(commentRoute[1]).toUpperCase());
+      const body = await readJson(request);
+
+      if (!chart) return refuse(response, 404, 'CHART_NOT_FOUND', `No chart has RT number ${commentRoute[1]}.`);
+      if (!request.headers['idempotency-key']) {
+        return refuse(response, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'Send an Idempotency-Key header.');
+      }
+      if (!String(body.body ?? '').trim()) {
+        return refuse(response, 400, 'VALIDATION_FAILED', 'Some fields need attention.', [
+          { field: 'body', message: 'Write a comment.' },
+        ]);
+      }
+
+      comments.set(chart.rtNumber, [
+        ...(comments.get(chart.rtNumber) ?? []),
+        {
+          id: `k${(comments.get(chart.rtNumber)?.length ?? 0) + 1}`,
+          kind: 'COMMENT',
+          body: String(body.body).trim(),
+          authorName: profileFor(staffToken).fullName,
+          authorRoles: profileFor(staffToken).roles,
+          forRole: body.forRole ?? null,
+          stageLabel: chart.stage.label,
+          createdAt: new Date().toISOString(),
+        },
+      ]);
+
+      return send(response, 201, detail(chart, staffToken));
     }
 
     const step = route.pathname.match(/^\/api\/v1\/charts\/by-number\/(.+)\/actions\/([A-Z_]+)$/);

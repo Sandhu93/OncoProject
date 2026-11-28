@@ -252,6 +252,46 @@ paths:
           description: Not signed in
         '404':
           description: CHART_NOT_FOUND
+  /charts/by-number/{rtNumber}/comments:
+    post:
+      operationId: addChartComment
+      summary: Add a comment to the chart's discussion
+      description: |
+        Anyone signed in can comment, on an open or a closed chart. Operational messages only, no patient details.
+        With `forRole` that role is notified; without it, whoever the chart is waiting for is. The answer is the
+        chart, with the new comment last in `comments`. The same `Idempotency-Key` returns the first answer.
+      security:
+        - bearer: []
+      parameters:
+        - { name: rtNumber, in: path, required: true, schema: { type: string } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [body]
+              properties:
+                body: { type: string, minLength: 1, maxLength: 1000 }
+                forRole:
+                  type: [string, 'null']
+                  enum:
+                    [JUNIOR_RESIDENT, SENIOR_RESIDENT, CONSULTANT, PHYSICIST, RADIOGRAPHER, null]
+      responses:
+        '201':
+          description: The chart with its discussion
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartDetail'
+        '400':
+          description: VALIDATION_FAILED, with `details` as a list of { field, message }
+        '401':
+          description: Not signed in
+        '404':
+          description: CHART_NOT_FOUND
   /charts/by-number/{rtNumber}/actions/{action}:
     post:
       operationId: performChartAction
@@ -261,7 +301,9 @@ paths:
         the fields to fill in, their defaults and limits. Send the values in `values`, with the chart `version`
         you saw in `expectedVersion`. The step, the stage change, its history row (with a plain-language summary),
         the audit event and the outbox event are written in one transaction. The same `Idempotency-Key` for the
-        same request returns the first answer (`Idempotent-Replayed: true`).
+        same request returns the first answer (`Idempotent-Replayed: true`). A step that passes the chart on also
+        offers an optional `handoffNote` (up to 500 characters): it is kept in the chart's discussion and sent with
+        the notice to whoever the chart goes to next.
       security:
         - bearer: []
       parameters:
@@ -481,6 +523,20 @@ components:
         - $ref: '#/components/schemas/ChartSummary'
         - type: object
           properties:
+            comments:
+              type: array
+              description: The discussion, oldest first. A HANDOFF is the note left with a step that passed the chart on.
+              items:
+                type: object
+                properties:
+                  id: { type: string }
+                  kind: { type: string, enum: [COMMENT, HANDOFF] }
+                  body: { type: string }
+                  authorName: { type: string }
+                  authorRoles: { type: array, items: { type: string } }
+                  forRole: { type: [string, 'null'] }
+                  stageLabel: { type: string }
+                  createdAt: { type: string, format: date-time }
             history:
               type: array
               items:

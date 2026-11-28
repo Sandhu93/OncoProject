@@ -3,6 +3,7 @@ import type { ChartDetail, ChartList, ChartQueue, ChartSummary } from '@oncotrac
 import { CurrentActor, type Actor } from '../auth/actor.js';
 import { ChartActionsService } from './chart-actions.service.js';
 import { ChartsService, type ListFilters } from './charts.service.js';
+import { CommentsService } from './comments.service.js';
 import { QueueService } from './queue.service.js';
 
 interface ResponseLike {
@@ -16,6 +17,7 @@ export class ChartsController {
     @Inject(ChartsService) private readonly charts: ChartsService,
     @Inject(ChartActionsService) private readonly actions: ChartActionsService,
     @Inject(QueueService) private readonly queue: QueueService,
+    @Inject(CommentsService) private readonly comments: CommentsService,
   ) {}
 
   @Post()
@@ -61,5 +63,20 @@ export class ChartsController {
     response.status(result.status);
     if (result.replayed) response.setHeader('Idempotent-Replayed', 'true');
     return result.body;
+  }
+
+  /** Adds a comment to the chart's discussion. Send `{ body, forRole? }` and an Idempotency-Key header. */
+  @Post('by-number/:rtNumber/comments')
+  async comment(
+    @CurrentActor() actor: Actor,
+    @Param('rtNumber') rtNumber: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ): Promise<ChartDetail> {
+    const result = await this.comments.post(actor, key, rtNumber, body);
+    response.status(result.status);
+    if (result.replayed) response.setHeader('Idempotent-Replayed', 'true');
+    return this.actions.view(actor, rtNumber);
   }
 }

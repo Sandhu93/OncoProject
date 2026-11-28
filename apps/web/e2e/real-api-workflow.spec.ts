@@ -42,7 +42,7 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
     await expect(page.getByText('Waiting for the radiographer to give mould and CT Sim dates')).toBeVisible();
     // Not the consultant's step.
     await expect(page.getByText('This step is not yours to take.')).toBeVisible();
-    await expect(page.getByRole('form')).toHaveCount(0);
+    await expect(page.getByRole('form').filter({ hasNotText: 'Add a comment' })).toHaveCount(0);
   });
 
   test('the radiographer gives the dates with the offered defaults', async ({ page }) => {
@@ -50,11 +50,17 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
     await page.goto(`/charts/${encodeURIComponent(rtNumber)}`);
 
     await page.getByLabel(/What the patient must do/).fill('Full bladder please.');
+    await page.getByLabel('Note for the next person').fill('Patient can only come in the mornings.');
     await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
 
     await expect(page.getByText('Waiting for the patient to attend the mould appointment')).toBeVisible();
     await expect(page.getByText('Mould appointment', { exact: true })).toBeVisible();
     await expect(page.getByText('CT Sim appointment', { exact: true })).toBeVisible();
+    // The handoff note is kept in the discussion, marked as such, and is not part of the step's own record.
+    const discussion = page.getByRole('list', { name: 'Comments, oldest first' });
+
+    await expect(discussion).toContainText('Patient can only come in the mornings.');
+    await expect(discussion).toContainText('note when passing the chart on');
     await expect(page.getByRole('row', { name: /Mould and CT Sim dates given/ })).toContainText('Full bladder please.');
     await expect(page.getByRole('row', { name: /Mould and CT Sim dates given/ })).toContainText(
       'Real Test Radiographer',
@@ -94,7 +100,7 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
 
     await expect(page.getByText('Waiting for a junior resident to be assigned for contouring')).toBeVisible();
     await expect(page.getByText('CT-77').first()).toBeVisible();
-    await expect(page.getByRole('form')).toHaveCount(0);
+    await expect(page.getByRole('form').filter({ hasNotText: 'Add a comment' })).toHaveCount(0);
     await expect(page.getByText('This step is not yours to take.')).toBeVisible();
   });
 });
@@ -129,7 +135,7 @@ test.describe('WEB-052 contouring: assign, submit, verify, approve, send back', 
     await logIn(page, 'real.junior');
     await open(page);
     await expect(page.getByText('This step is not yours to take.')).toBeVisible();
-    await expect(page.getByRole('form')).toHaveCount(0);
+    await expect(page.getByRole('form').filter({ hasNotText: 'Add a comment' })).toHaveCount(0);
 
     await logIn(page, 'real.junior2');
     await open(page);
@@ -284,7 +290,7 @@ test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, fin
 
     await page.getByLabel('How was the patient told?').selectOption('In person');
     await page.getByLabel('Patient should arrive on').fill(istDay(1));
-    await page.getByLabel('Note').fill('Came to the ward.');
+    await page.getByLabel(/^Note( \(optional\))?$/).fill('Came to the ward.');
     await page.getByRole('button', { name: 'Tell patient to come' }).click();
 
     await expect(page.getByText('Waiting for the patient to arrive and treatment to start')).toBeVisible();
@@ -337,9 +343,11 @@ test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, fin
     await open(page);
     await page.getByLabel('Sessions given in total').fill('12');
     await page.getByRole('button', { name: 'Record treatment complete' }).click();
-    await expect(page.getByLabel('Note')).toHaveAccessibleDescription(/Say why treatment ended early/);
+    await expect(page.getByLabel(/^Note( \(optional\))?$/)).toHaveAccessibleDescription(
+      /Say why treatment ended early/,
+    );
 
-    await page.getByLabel('Note').fill('Patient moved to another hospital.');
+    await page.getByLabel(/^Note( \(optional\))?$/).fill('Patient moved to another hospital.');
     await page.getByRole('button', { name: 'Record treatment complete' }).click();
 
     // Treatment is over but tracking continues until both final updates are in.
@@ -354,7 +362,7 @@ test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, fin
     await page.getByRole('button', { name: 'Post final update' }).click();
     await expect(page.getByText('Nothing more to do: tracking ends here.')).toBeVisible();
     await expect(page.getByText(/closed/).first()).toBeVisible();
-    await expect(page.getByRole('form')).toHaveCount(0);
+    await expect(page.getByRole('form').filter({ hasNotText: 'Add a comment' })).toHaveCount(0);
   });
 });
 

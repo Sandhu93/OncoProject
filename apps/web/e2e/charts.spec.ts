@@ -249,7 +249,31 @@ test.describe('WEB-050 recording a workflow step', () => {
       page.getByText('Waiting for a junior resident to submit the contours (Junior resident).'),
     ).toBeVisible();
     await expect(page.getByText('This step is not yours to take.')).toBeVisible();
-    await expect(page.getByRole('form')).toHaveCount(0);
+    // Only the comment form: there is no step to take.
+    await expect(page.getByRole('form').filter({ hasNotText: 'Add a comment' })).toHaveCount(0);
+  });
+
+  test('adds a comment to the discussion, and asks for text', async ({ page }) => {
+    await page.goto('/charts/SEED-002');
+    await expect(page.getByText('No comments yet.')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Add comment' }).click();
+    await expect(page.getByText('Write a comment.')).toBeVisible();
+    await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveAccessibleDescription(
+      /Operational notes only/,
+    );
+
+    await page.getByRole('textbox', { name: 'Comment', exact: true }).fill('Is the CT slot confirmed?');
+    await page.getByRole('combobox', { name: /^For/ }).selectOption('RADIOGRAPHER');
+    await page.getByRole('button', { name: 'Add comment' }).click();
+
+    const list = page.getByRole('list', { name: 'Comments, oldest first' });
+
+    await expect(list).toContainText('Is the CT slot confirmed?');
+    await expect(list).toContainText('for Radiographer');
+    await expect(list).toContainText('Synthetic Consultant');
+    await expect(page.getByText('No comments yet.')).toHaveCount(0);
+    await expect(page.getByRole('textbox', { name: 'Comment', exact: true })).toHaveValue('');
   });
 });
 
