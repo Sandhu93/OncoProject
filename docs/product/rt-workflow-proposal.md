@@ -2,13 +2,15 @@
 
 Status: **PROPOSED, NOT APPROVED.** Drafted 24 October 2026 from the consultant's own description of the department process. It must not be seeded, activated or coded as a clinical protocol until the consultant confirms it. See [the confirmation sheet](consultant-confirmation-sheet.md) for the questions to take to that meeting.
 
+**Revision of 28 November 2026.** The doctor sent the department's steps again, in writing. They agree with the thirteen steps below in every respect but one: **the junior resident and the radiographer both post a status update after treatment is complete, not only every Saturday.** So completing treatment no longer ends tracking: the chart waits for those two final updates and closes when both are in. That is a change to stage `TREATMENT_COMPLETED`, a new final stage `TRACKING_ENDED`, and the action `POST_FINAL_UPDATE` (marked **Revised** below). It is described here first and goes into the seed and the application as its own change; until then the seed still ends tracking at completion.
+
 Every row below is marked either **Stated** (the consultant said this) or **Assumed** (an engineering inference needed to make the workflow complete). Assumptions are the questions that matter most.
 
 The tables below are loaded, unchanged, by `database/seeds/rt-workflow-proposed.sql` (workflow `RT_PROPOSED`, still a DRAFT until approved) and checked by test DB-030, so the code cannot drift from this page or from the prototype.
 
 ## What the consultant described
 
-1. The doctor decides to give radiation, writes the prescription on the radiation (RT) chart and the patient is given a unique RT number.
+1. The doctor decides to give radiation, writes the prescription (the dose to be given) on the radiation (RT) chart, and the chart is given a unique RT number.
 2. The patient goes to the radiographer for a date for moulding (mask making) and a date for CT simulation (CT Sim).
 3. The patient reports for the mould/mask.
 4. The patient reports for CT simulation.
@@ -22,50 +24,73 @@ The tables below are loaded, unchanged, by `database/seeds/rt-workflow-proposed.
 12. The patient reports to start treatment; the junior resident records the start of a new patient.
 13. The junior resident updates the patient's status weekly. The radiographer and junior resident update the treatment status every Saturday and after treatment is complete.
 
+In the doctor's words (28 November 2026), step 13 reads: "Junior resident updates weekly about the status of patient. Radiographer and junior resident update status of treatment every Saturday and after the completion of treatment."
+
+### How the doctor's steps line up with the stages
+
+| Doctor's step                                     | Stage the chart is in afterwards             | Same as before? |
+| ------------------------------------------------- | -------------------------------------------- | --------------- |
+| 1 RT chart written, RT number given               | `RT_CHART_ISSUED`                            | Yes             |
+| 2 Radiographer gives mould and CT Sim dates       | `SIMULATION_DATES_GIVEN`                     | Yes             |
+| 3 Patient attends mould                           | `MOULD_DONE`                                 | Yes             |
+| 4 Patient attends CT Sim                          | `CT_SIM_DONE`                                | Yes             |
+| 5 Assigned junior resident contours               | `CONTOURING`, then `SENIOR_VERIFICATION`     | Yes             |
+| 6 Senior resident verifies                        | `CONSULTANT_CONTOUR_APPROVAL`                | Yes             |
+| 7 Consultant approves contouring                  | `PHYSICS_PLANNING`                           | Yes             |
+| 8 Physicist plans                                 | `PLAN_APPROVAL`                              | Yes             |
+| 9 Treating doctor or consultant approves the plan | `PLAN_APPROVED`                              | Yes             |
+| 10 Approved plan sent to the LINAC                | `PLAN_ON_LINAC`                              | Yes             |
+| 11 Radiographer informs the patient               | `PATIENT_INFORMED`                           | Yes             |
+| 12 Patient starts; junior resident records it     | `TREATMENT_IN_PROGRESS`                      | Yes             |
+| 13 Weekly and Saturday updates by both roles      | stays in `TREATMENT_IN_PROGRESS`             | Yes             |
+| 13 Updates after completion by both roles         | `TREATMENT_COMPLETED`, then `TRACKING_ENDED` | **Revised**     |
+
 ## Stages (where a chart can be waiting)
 
-Fourteen stages cover the thirteen steps: step 11 produces two states (plan waiting on the LINAC, then patient informed). Stage codes are stable identifiers; labels can change.
+Fifteen stages cover the thirteen steps: step 11 produces two states (plan waiting on the LINAC, then patient informed), and step 13 ends in a final-updates stage followed by the end of tracking. Stage codes are stable identifiers; labels can change.
 
-| Stage code                    | The chart is waiting for…                       | Step | Source  |
-| ----------------------------- | ----------------------------------------------- | ---- | ------- |
-| `RT_CHART_ISSUED` (initial)   | Radiographer to give mould and CT Sim dates     | 1    | Stated  |
-| `SIMULATION_DATES_GIVEN`      | Patient to attend the mould appointment         | 2    | Stated  |
-| `MOULD_DONE`                  | Patient to attend CT simulation                 | 3    | Stated  |
-| `CT_SIM_DONE`                 | A junior resident to be assigned for contouring | 4    | Assumed |
-| `CONTOURING`                  | Assigned junior resident to submit contouring   | 5    | Stated  |
-| `SENIOR_VERIFICATION`         | Senior resident to verify the contouring        | 6    | Stated  |
-| `CONSULTANT_CONTOUR_APPROVAL` | Consultant to approve the contouring            | 7    | Stated  |
-| `PHYSICS_PLANNING`            | Physicist to build and submit the plan          | 8    | Stated  |
-| `PLAN_APPROVAL`               | Consultant/treating doctor to approve the plan  | 9    | Stated  |
-| `PLAN_APPROVED`               | Approved plan to be sent to the LINAC           | 10   | Stated  |
-| `PLAN_ON_LINAC`               | Radiographer to inform the patient              | 11   | Stated  |
-| `PATIENT_INFORMED`            | Patient to arrive and treatment to start        | 11   | Stated  |
-| `TREATMENT_IN_PROGRESS`       | Weekly updates, then completion                 | 12   | Stated  |
-| `TREATMENT_COMPLETED`         | Nothing: end of tracking (terminal, see D-06)   | 13   | Assumed |
+| Stage code                    | The chart is waiting for…                                        | Step | Source  |
+| ----------------------------- | ---------------------------------------------------------------- | ---- | ------- |
+| `RT_CHART_ISSUED` (initial)   | Radiographer to give mould and CT Sim dates                      | 1    | Stated  |
+| `SIMULATION_DATES_GIVEN`      | Patient to attend the mould appointment                          | 2    | Stated  |
+| `MOULD_DONE`                  | Patient to attend CT simulation                                  | 3    | Stated  |
+| `CT_SIM_DONE`                 | A junior resident to be assigned for contouring                  | 4    | Assumed |
+| `CONTOURING`                  | Assigned junior resident to submit contouring                    | 5    | Stated  |
+| `SENIOR_VERIFICATION`         | Senior resident to verify the contouring                         | 6    | Stated  |
+| `CONSULTANT_CONTOUR_APPROVAL` | Consultant to approve the contouring                             | 7    | Stated  |
+| `PHYSICS_PLANNING`            | Physicist to build and submit the plan                           | 8    | Stated  |
+| `PLAN_APPROVAL`               | Consultant/treating doctor to approve the plan                   | 9    | Stated  |
+| `PLAN_APPROVED`               | Approved plan to be sent to the LINAC                            | 10   | Stated  |
+| `PLAN_ON_LINAC`               | Radiographer to inform the patient                               | 11   | Stated  |
+| `PATIENT_INFORMED`            | Patient to arrive and treatment to start                         | 11   | Stated  |
+| `TREATMENT_IN_PROGRESS`       | Weekly updates, then completion                                  | 12   | Stated  |
+| `TREATMENT_COMPLETED`         | Junior resident and radiographer to post the final status update | 13   | Revised |
+| `TRACKING_ENDED` (terminal)   | Nothing: both final updates are in (see D-06)                    | 13   | Revised |
 
 ## Actions (how a chart moves)
 
-| From                          | Action                  | Actor           | Next                          | Assigned actor | Reason | Source  |
-| ----------------------------- | ----------------------- | --------------- | ----------------------------- | -------------- | ------ | ------- |
-| (new chart)                   | `ISSUE_RT_CHART`        | Consultant      | `RT_CHART_ISSUED`             | No             | No     | Assumed |
-| `RT_CHART_ISSUED`             | `GIVE_SIMULATION_DATES` | Radiographer    | `SIMULATION_DATES_GIVEN`      | No             | No     | Stated  |
-| `SIMULATION_DATES_GIVEN`      | `RECORD_MOULD_DONE`     | Radiographer    | `MOULD_DONE`                  | No             | No     | Assumed |
-| `MOULD_DONE`                  | `RECORD_CT_SIM_DONE`    | Radiographer    | `CT_SIM_DONE`                 | No             | No     | Assumed |
-| `CT_SIM_DONE`                 | `ASSIGN_CONTOURING`     | Consultant      | `CONTOURING`                  | No             | No     | Assumed |
-| `CONTOURING`                  | `SUBMIT_CONTOURING`     | Junior resident | `SENIOR_VERIFICATION`         | Yes            | No     | Stated  |
-| `SENIOR_VERIFICATION`         | `VERIFY_CONTOURING`     | Senior resident | `CONSULTANT_CONTOUR_APPROVAL` | No             | No     | Stated  |
-| `SENIOR_VERIFICATION`         | `RETURN_CONTOURING`     | Senior resident | `CONTOURING`                  | No             | Yes    | Assumed |
-| `CONSULTANT_CONTOUR_APPROVAL` | `APPROVE_CONTOURING`    | Consultant      | `PHYSICS_PLANNING`            | No             | No     | Stated  |
-| `CONSULTANT_CONTOUR_APPROVAL` | `RETURN_CONTOURING`     | Consultant      | `CONTOURING`                  | No             | Yes    | Assumed |
-| `PHYSICS_PLANNING`            | `SUBMIT_PLAN`           | Physicist       | `PLAN_APPROVAL`               | No             | No     | Stated  |
-| `PLAN_APPROVAL`               | `APPROVE_PLAN`          | Consultant      | `PLAN_APPROVED`               | No             | No     | Stated  |
-| `PLAN_APPROVAL`               | `RETURN_PLAN`           | Consultant      | `PHYSICS_PLANNING`            | No             | Yes    | Assumed |
-| `PLAN_APPROVED`               | `SEND_PLAN_TO_LINAC`    | Physicist       | `PLAN_ON_LINAC`               | No             | No     | Assumed |
-| `PLAN_ON_LINAC`               | `INFORM_PATIENT`        | Radiographer    | `PATIENT_INFORMED`            | No             | No     | Stated  |
-| `PATIENT_INFORMED`            | `START_TREATMENT`       | Junior resident | `TREATMENT_IN_PROGRESS`       | No             | No     | Stated  |
-| `TREATMENT_IN_PROGRESS`       | `COMPLETE_TREATMENT`    | Junior resident | `TREATMENT_COMPLETED`         | No             | No     | Assumed |
+| From                          | Action                  | Actor                                      | Next                                     | Assigned actor | Reason | Source  |
+| ----------------------------- | ----------------------- | ------------------------------------------ | ---------------------------------------- | -------------- | ------ | ------- |
+| (new chart)                   | `ISSUE_RT_CHART`        | Consultant                                 | `RT_CHART_ISSUED`                        | No             | No     | Assumed |
+| `RT_CHART_ISSUED`             | `GIVE_SIMULATION_DATES` | Radiographer                               | `SIMULATION_DATES_GIVEN`                 | No             | No     | Stated  |
+| `SIMULATION_DATES_GIVEN`      | `RECORD_MOULD_DONE`     | Radiographer                               | `MOULD_DONE`                             | No             | No     | Assumed |
+| `MOULD_DONE`                  | `RECORD_CT_SIM_DONE`    | Radiographer                               | `CT_SIM_DONE`                            | No             | No     | Assumed |
+| `CT_SIM_DONE`                 | `ASSIGN_CONTOURING`     | Consultant                                 | `CONTOURING`                             | No             | No     | Assumed |
+| `CONTOURING`                  | `SUBMIT_CONTOURING`     | Junior resident                            | `SENIOR_VERIFICATION`                    | Yes            | No     | Stated  |
+| `SENIOR_VERIFICATION`         | `VERIFY_CONTOURING`     | Senior resident                            | `CONSULTANT_CONTOUR_APPROVAL`            | No             | No     | Stated  |
+| `SENIOR_VERIFICATION`         | `RETURN_CONTOURING`     | Senior resident                            | `CONTOURING`                             | No             | Yes    | Assumed |
+| `CONSULTANT_CONTOUR_APPROVAL` | `APPROVE_CONTOURING`    | Consultant                                 | `PHYSICS_PLANNING`                       | No             | No     | Stated  |
+| `CONSULTANT_CONTOUR_APPROVAL` | `RETURN_CONTOURING`     | Consultant                                 | `CONTOURING`                             | No             | Yes    | Assumed |
+| `PHYSICS_PLANNING`            | `SUBMIT_PLAN`           | Physicist                                  | `PLAN_APPROVAL`                          | No             | No     | Stated  |
+| `PLAN_APPROVAL`               | `APPROVE_PLAN`          | Consultant                                 | `PLAN_APPROVED`                          | No             | No     | Stated  |
+| `PLAN_APPROVAL`               | `RETURN_PLAN`           | Consultant                                 | `PHYSICS_PLANNING`                       | No             | Yes    | Assumed |
+| `PLAN_APPROVED`               | `SEND_PLAN_TO_LINAC`    | Physicist                                  | `PLAN_ON_LINAC`                          | No             | No     | Assumed |
+| `PLAN_ON_LINAC`               | `INFORM_PATIENT`        | Radiographer                               | `PATIENT_INFORMED`                       | No             | No     | Stated  |
+| `PATIENT_INFORMED`            | `START_TREATMENT`       | Junior resident                            | `TREATMENT_IN_PROGRESS`                  | No             | No     | Stated  |
+| `TREATMENT_IN_PROGRESS`       | `COMPLETE_TREATMENT`    | Junior resident                            | `TREATMENT_COMPLETED`                    | No             | No     | Assumed |
+| `TREATMENT_COMPLETED`         | `POST_FINAL_UPDATE`     | Junior resident and radiographer, one each | stays; `TRACKING_ENDED` when both are in | No             | No     | Revised |
 
-Weekly and completion status updates are **records inside `TREATMENT_IN_PROGRESS`**, not stage changes. See "Treatment updates" below.
+Weekly updates are **records inside `TREATMENT_IN_PROGRESS`**, not stage changes. The final updates are records inside `TREATMENT_COMPLETED`; the second one moves the chart to `TRACKING_ENDED`. See "Treatment updates" below.
 
 ## Prerequisites to enforce (all assumed)
 
@@ -79,7 +104,8 @@ The consultant wants these recorded after treatment starts:
 
 - **Treatment start:** recorded once by the junior resident when treatment begins.
 - **Weekly update:** the junior resident and the radiographer each post one update for every Saturday while the chart is in `TREATMENT_IN_PROGRESS`.
-- **Completion update:** recorded once when treatment finishes.
+- **Completion:** the junior resident records that treatment is finished (sessions given, and a note if fewer than planned). The chart moves to `TREATMENT_COMPLETED`.
+- **Final update:** after completion the junior resident and the radiographer each post one final status update. When both are in, the chart moves to `TRACKING_ENDED` and is closed. Until then it stays open and appears in each person's queue.
 
 Migration `002` adds `treatment_status_updates` and a `weekly_updates_due()` function so the application can list charts where a required Saturday update is missing. What an update must contain, how late is "late", and whether missed weeks stay visible are open (D-11). The database stores a short operational note only; it must not hold clinical findings.
 
@@ -91,6 +117,8 @@ These need an answer before the workflow can be activated:
 - Replanning, repeat simulation, treatment interruption and discontinuation.
 - Who registers charts, who assigns the physicist, and who calls patients who miss appointments (D-02).
 - How many days each stage may wait before the chart is flagged (D-07).
-- Whether the "treating doctor" who approves a plan can differ from the "consultant".
+- Whether the "treating doctor" who approves a plan can differ from the "consultant". Step 9 says "treating doctor or consultant"; today only a consultant account can approve.
+- Whether the prescription (the dose in Gy and the number of fractions) should be recorded on the chart. Step 1 says the doctor writes it. The chart holds only the planned number of sessions today. A dose is clinical, not identifying, so it can be stored; the consultant should say whether to.
+- How long after completion the final updates may take, and what happens if one of the two never posts (the chart would stay open).
 
 None of these were guessed into the tables above except where marked **Assumed**.
