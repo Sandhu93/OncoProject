@@ -50,7 +50,7 @@ export default async function ChartsPage({ searchParams }: { searchParams: Searc
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
-      <AppHeader current="charts" fullName={staff.fullName} />
+      <AppHeader current="charts" fullName={staff.fullName} capabilities={staff.capabilities} />
 
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold">Charts</h1>

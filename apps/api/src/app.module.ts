@@ -1,5 +1,9 @@
 import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
+import { AdminController } from './admin/admin.controller.js';
+import { AuditService } from './admin/audit.service.js';
+import { StaffAdminService } from './admin/staff-admin.service.js';
+import { WorkflowViewService } from './admin/workflow-view.service.js';
 import { AccessGuard } from './auth/access.guard.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
@@ -19,7 +23,13 @@ import { NotificationsController } from './notifications/notifications.controlle
 import { CommandService } from './transactions/command.service.js';
 
 @Module({
-  controllers: [HealthController, AuthController, ChartsController, NotificationsController],
+  controllers: [
+    HealthController,
+    AuthController,
+    ChartsController,
+    NotificationsController,
+    AdminController,
+  ],
   providers: [
     DatabaseService,
     SessionService,
@@ -33,6 +43,9 @@ import { CommandService } from './transactions/command.service.js';
     QueueService,
     NotificationService,
     NotificationScheduler,
+    StaffAdminService,
+    WorkflowViewService,
+    AuditService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })

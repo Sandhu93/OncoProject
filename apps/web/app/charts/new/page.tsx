@@ -22,7 +22,7 @@ export default async function NewChartPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
-      <AppHeader current="charts" fullName={staff.fullName} />
+      <AppHeader current="charts" fullName={staff.fullName} capabilities={staff.capabilities} />
       <Link href="/charts" className="text-sm underline underline-offset-4">
         ← All charts
       </Link>

@@ -42,7 +42,7 @@ export default async function NotificationsPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
-      <AppHeader current="notifications" fullName={staff.fullName} />
+      <AppHeader current="notifications" fullName={staff.fullName} capabilities={staff.capabilities} />
       <AutoRefresh />
 
       <div className="flex flex-wrap items-center justify-between gap-3">

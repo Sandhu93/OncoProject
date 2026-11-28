@@ -375,6 +375,177 @@ paths:
           description: CHART_NOT_FOUND
         '409':
           description: CHART_CHANGED (the chart moved on since `expectedVersion`), ACTION_NOT_AVAILABLE (wrong stage), CHART_CLOSED, PREREQUISITES_MISSING (the patient cannot be told yet) or ALREADY_POSTED (this role's Saturday update for the week)
+  /admin/staff:
+    get:
+      operationId: listStaff
+      summary: Every staff account
+      description: |
+        Needs the MANAGE_STAFF access. Roles, extra access, whether the account is switched on and available, and
+        the last sign-in. Never any password.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: '{ items: StaffMember[] }'
+        '401':
+          description: Not signed in
+        '403':
+          description: CAPABILITY_REQUIRED
+    post:
+      operationId: createStaff
+      summary: Add a staff account
+      description: |
+        Needs MANAGE_STAFF. The username is stored in lower case. The first password must pass the password policy
+        (12 to 128 characters). The audit records the account but never the password. The same `Idempotency-Key`
+        returns the first answer.
+      security:
+        - bearer: []
+      parameters:
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [username, fullName, roles, password]
+              properties:
+                username: { type: string, pattern: '^[a-z0-9][a-z0-9._-]{2,49}$' }
+                fullName: { type: string, maxLength: 120 }
+                roles:
+                  type: array
+                  items:
+                    {
+                      enum: [JUNIOR_RESIDENT, SENIOR_RESIDENT, CONSULTANT, PHYSICIST, RADIOGRAPHER],
+                    }
+                capabilities:
+                  type: array
+                  items: { enum: [MANAGE_STAFF, CONFIGURE_WORKFLOW, VIEW_AUDIT, EXPORT_REPORTS] }
+                password: { type: string }
+      responses:
+        '201':
+          description: The new StaffMember
+        '400':
+          description: VALIDATION_FAILED, with `details` as a list of { field, message }
+        '403':
+          description: CAPABILITY_REQUIRED
+        '409':
+          description: USERNAME_TAKEN
+  /admin/staff/{id}:
+    post:
+      operationId: updateStaff
+      summary: Change a staff account
+      description: |
+        Needs MANAGE_STAFF. Only what is sent changes; `roles` and `capabilities` replace the whole set. Switching an
+        account off ends its sessions at once. Refused: switching off or removing MANAGE_STAFF from yourself
+        (CANNOT_SWITCH_OFF_SELF, CANNOT_REMOVE_OWN_ACCESS), and leaving no active account able to manage staff
+        (LAST_ADMINISTRATOR). The audit keeps the values before and after.
+      security:
+        - bearer: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                fullName: { type: string, maxLength: 120 }
+                roles: { type: array, items: { type: string } }
+                capabilities: { type: array, items: { type: string } }
+                isActive: { type: boolean }
+                isAvailable: { type: boolean }
+      responses:
+        '200':
+          description: The StaffMember after the change
+        '400':
+          description: VALIDATION_FAILED
+        '403':
+          description: CAPABILITY_REQUIRED
+        '404':
+          description: STAFF_NOT_FOUND
+        '409':
+          description: CANNOT_SWITCH_OFF_SELF, CANNOT_REMOVE_OWN_ACCESS or LAST_ADMINISTRATOR
+  /admin/staff/{id}/password:
+    post:
+      operationId: setStaffPassword
+      summary: Set a new password for a staff account
+      description: |
+        Needs MANAGE_STAFF. Ends every session of that person and clears any sign-in lock. The audit records the
+        reset but never the password.
+      security:
+        - bearer: []
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password]
+              properties:
+                password: { type: string }
+      responses:
+        '200':
+          description: The StaffMember
+        '400':
+          description: VALIDATION_FAILED (password policy)
+        '403':
+          description: CAPABILITY_REQUIRED
+        '404':
+          description: STAFF_NOT_FOUND
+  /admin/workflow:
+    get:
+      operationId: getActiveWorkflow
+      summary: The workflow in use, to read
+      description: |
+        Any signed-in person. `workflow` is null when none has been approved. Stages are in order; transitions list
+        every step out of each stage with the role that does it.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: '{ workflow: WorkflowView | null }'
+        '401':
+          description: Not signed in
+  /admin/audit:
+    get:
+      operationId: listAudit
+      summary: The audit trail, newest first
+      description: |
+        Needs VIEW_AUDIT. `person` matches a name or username as plain text. `from` and `to` are India Standard
+        Time dates, both included. `actions` lists every action name in the trail, for the filter.
+      security:
+        - bearer: []
+      parameters:
+        - { name: rt, in: query, required: false, schema: { type: string } }
+        - { name: action, in: query, required: false, schema: { type: string } }
+        - { name: person, in: query, required: false, schema: { type: string } }
+        - { name: from, in: query, required: false, schema: { type: string, format: date } }
+        - { name: to, in: query, required: false, schema: { type: string, format: date } }
+        - {
+            name: limit,
+            in: query,
+            required: false,
+            schema: { type: integer, minimum: 1, maximum: 100, default: 50 },
+          }
+        - {
+            name: offset,
+            in: query,
+            required: false,
+            schema: { type: integer, minimum: 0, default: 0 },
+          }
+      responses:
+        '200':
+          description: '{ items: AuditEntry[], total, actions }'
+        '400':
+          description: VALIDATION_FAILED
+        '403':
+          description: CAPABILITY_REQUIRED
 components:
   securitySchemes:
     bearer:

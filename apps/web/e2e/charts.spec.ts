@@ -410,3 +410,158 @@ test.describe('WEB-070 the inbox', () => {
     await expect(page.getByRole('button', { name: 'Mark all as read' })).toHaveCount(0);
   });
 });
+
+test.describe('WEB-090 staff, workflow and audit', () => {
+  test('the nav shows Staff and Audit only to those who hold them', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/charts');
+
+    const nav = page.getByRole('navigation', { name: 'Main' });
+
+    await expect(nav.getByRole('link', { name: 'Staff', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Audit', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Workflow', exact: true })).toBeVisible();
+
+    await context.clearCookies();
+    await signIn(context, baseURL!, 'resident-token');
+    await page.goto('/charts');
+    await expect(nav.getByRole('link', { name: 'Workflow', exact: true })).toBeVisible();
+    await expect(nav.getByRole('link', { name: 'Staff', exact: true })).toHaveCount(0);
+    await expect(nav.getByRole('link', { name: 'Audit', exact: true })).toHaveCount(0);
+  });
+
+  test('someone without the permission is told so and sees no accounts', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!, 'resident-token');
+
+    await page.goto('/staff');
+    await expect(page.getByText('You do not have permission to manage staff accounts')).toBeVisible();
+    await expect(page.getByRole('list', { name: 'Staff' })).toHaveCount(0);
+
+    await page.goto('/audit');
+    await expect(page.getByText('You do not have permission to read the audit trail')).toBeVisible();
+  });
+
+  test('adds an account, with a message beside each field that needs attention', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/staff');
+
+    await expect(page.getByRole('heading', { name: 'Staff', level: 1 })).toBeVisible();
+
+    const list = page.getByRole('list', { name: 'Staff' });
+
+    await expect(list).toContainText('Synthetic Consultant');
+    await expect(list).toContainText('Synthetic Resident');
+
+    const form = page.getByRole('form', { name: 'Add an account' });
+
+    await form.getByRole('textbox', { name: 'Full name' }).fill('Dr New Person');
+    await form.getByRole('textbox', { name: 'Username' }).fill('e2e.new.account');
+    await form.getByLabel('First password').fill('short');
+    await form.getByRole('button', { name: 'Add account' }).click();
+
+    await expect(form.getByText('Use at least 12 characters.')).toBeVisible();
+    await expect(form.getByText('Choose at least one role.')).toBeVisible();
+    // What was typed is kept; the password never is.
+    await expect(form.getByRole('textbox', { name: 'Username' })).toHaveValue('e2e.new.account');
+    await expect(form.getByLabel('First password')).toHaveValue('');
+
+    await form.getByLabel('First password').fill('a long enough passphrase');
+    await form.getByRole('checkbox', { name: 'Radiographer' }).check();
+    await form.getByRole('button', { name: 'Add account' }).click();
+
+    await expect(form.getByRole('status')).toContainText('Dr New Person can now sign in.');
+    await expect(list).toContainText('Dr New Person');
+    await expect(list).toContainText('Has not signed in yet');
+    await expect(form.getByRole('textbox', { name: 'Username' })).toHaveValue('');
+  });
+
+  test('changes an account, and will not let you switch yourself off', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/staff');
+
+    const resident = page.getByRole('listitem').filter({ hasText: 'synthetic.resident' });
+
+    await resident.getByText('Change Synthetic Resident').click();
+
+    const form = resident.getByRole('form', { name: 'Edit Synthetic Resident' });
+
+    await form.getByRole('checkbox', { name: /Available for new work/ }).uncheck();
+    await form.getByRole('button', { name: 'Save changes' }).click();
+
+    await expect(form.getByRole('status')).toHaveText('Saved.');
+    await expect(resident).toContainText('Not available');
+
+    const me = page.getByRole('listitem').filter({ hasText: 'synthetic.consultant' });
+
+    await me.getByText('Change Synthetic Consultant').click();
+    await expect(
+      me.getByRole('form', { name: 'Edit Synthetic Consultant' }).getByRole('checkbox', { name: /Can sign in/ }),
+    ).toBeDisabled();
+  });
+
+  test('a new password needs at least twelve characters', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/staff');
+
+    const resident = page.getByRole('listitem').filter({ hasText: 'synthetic.resident' });
+
+    await resident.getByText('Change Synthetic Resident').click();
+
+    const form = resident.getByRole('form', { name: 'New password for Synthetic Resident' });
+
+    await form.getByLabel('New password').fill('short');
+    await form.getByRole('button', { name: 'Set password' }).click();
+    await expect(form.getByText('Use at least 12 characters.')).toBeVisible();
+
+    await form.getByLabel('New password').fill('a long enough passphrase');
+    await form.getByRole('button', { name: 'Set password' }).click();
+    await expect(form.getByRole('status')).toContainText('Password set.');
+  });
+
+  test('the workflow page shows every stage and the steps out of it', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!, 'resident-token');
+    await page.goto('/workflow');
+
+    await expect(page.getByRole('heading', { name: 'Workflow', level: 1 })).toBeVisible();
+    await expect(page.getByText(/version 1/)).toContainText('Approved by Synthetic Consultant');
+
+    const stages = page
+      .getByRole('list', { name: 'Stages' })
+      .getByRole('listitem')
+      .filter({ has: page.getByRole('heading') });
+
+    await expect(stages).toHaveCount(4);
+    await expect(stages.first()).toContainText('Where every chart starts');
+    await expect(stages.first()).toContainText('Give mould and CT Sim dates by Radiographer → Dates given');
+    await expect(stages.nth(2)).toContainText('Saturday update: Junior resident and Radiographer');
+    await expect(stages.last()).toContainText('Where tracking ends');
+    await expect(stages.last()).toContainText('No further steps.');
+  });
+
+  test('the audit page lists entries and narrows by chart', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/audit');
+
+    await expect(page.getByRole('heading', { name: 'Audit trail', level: 1 })).toBeVisible();
+
+    const trail = page.getByRole('list', { name: 'Audit trail' });
+
+    await expect(trail.getByRole('listitem')).toHaveCount(4);
+    await expect(trail.getByRole('listitem').first()).toContainText('Staff created');
+
+    await page
+      .getByRole('searchbox')
+      .or(page.getByRole('textbox', { name: 'RT number' }))
+      .first()
+      .fill('seed-002');
+    await page.getByRole('button', { name: 'Search' }).click();
+
+    await expect(page).toHaveURL(/\/audit\?rt=seed-002/);
+    await expect(trail.getByRole('listitem')).toHaveCount(1);
+    await expect(trail).toContainText('Chart issued');
+
+    await page.getByLabel('What happened').selectOption('STAFF_CREATED');
+    await page.getByRole('button', { name: 'Search' }).click();
+    await expect(page.getByText('Nothing in the audit trail matches this search.')).toBeVisible();
+  });
+});

@@ -18,6 +18,10 @@
  *     the chart "CHANGED-1"; 403 for "resident-token". Only charts at "RT chart issued" offer this step.
  * POST /api/v1/charts/by-number/:rtNumber/comments   Idempotency-Key { body, forRole? } -> 201 chart with the comment added;
  *     400 VALIDATION_FAILED when the comment is empty
+ * GET  /api/v1/admin/staff                 -> { items }; POST creates (400 VALIDATION_FAILED, 409 USERNAME_TAKEN);
+ *     POST /admin/staff/:id changes one (409 CANNOT_SWITCH_OFF_SELF for the signed-in person); POST /admin/staff/:id/password
+ * GET  /api/v1/admin/workflow, /api/v1/admin/audit?rt&action&person&from&to&limit&offset
+ *     (403 CAPABILITY_REQUIRED for the token "resident-token")
  * GET  /revoked-tokens                    ->  tokens revoked so far, for assertions
  */
 import { createServer } from 'node:http';
@@ -30,7 +34,7 @@ const PROFILE = {
   username: 'synthetic.consultant',
   fullName: 'Synthetic Consultant',
   roles: ['CONSULTANT'],
-  capabilities: ['VIEW_AUDIT'],
+  capabilities: ['MANAGE_STAFF', 'VIEW_AUDIT'],
 };
 
 const readJson = async request => {
@@ -104,6 +108,96 @@ const makeChart = (rtNumber, change = {}) => {
     stageCode: undefined,
   };
 };
+
+const staffMembers = new Map(
+  [
+    { ...PROFILE, isActive: true, isAvailable: true, createdAt: minutesAgo(5000), lastLoginAt: minutesAgo(10) },
+    {
+      id: '00000000-0000-4000-8000-000000000002',
+      username: 'synthetic.resident',
+      fullName: 'Synthetic Resident',
+      roles: ['JUNIOR_RESIDENT'],
+      capabilities: [],
+      isActive: true,
+      isAvailable: true,
+      createdAt: minutesAgo(5000),
+      lastLoginAt: null,
+    },
+  ].map(member => [member.id, member]),
+);
+
+const stageOf = (code, label, position, extra = {}) => ({
+  code,
+  label,
+  phase: 'Getting ready',
+  position,
+  isInitial: false,
+  isTerminal: false,
+  weeklyUpdateRoles: [],
+  ...extra,
+});
+
+const WORKFLOW = {
+  code: 'RT_PROPOSED',
+  version: 1,
+  label: 'RT workflow (proposed)',
+  status: 'ACTIVE',
+  approvedBy: 'Synthetic Consultant',
+  approvedAt: '2026-11-01T05:30:00.000Z',
+  stages: [
+    stageOf('RT_CHART_ISSUED', 'RT chart issued', 1, { isInitial: true }),
+    stageOf('SIMULATION_DATES_GIVEN', 'Dates given', 2),
+    stageOf('TREATMENT_STARTED', 'Treatment started', 3, {
+      phase: 'Treatment',
+      weeklyUpdateRoles: ['JUNIOR_RESIDENT', 'RADIOGRAPHER'],
+    }),
+    stageOf('TRACKING_ENDED', 'Tracking ended', 4, { phase: 'Finished', isTerminal: true }),
+  ],
+  transitions: [
+    {
+      from: 'RT_CHART_ISSUED',
+      fromLabel: 'RT chart issued',
+      action: 'GIVE_SIMULATION_DATES',
+      actionLabel: 'Give mould and CT Sim dates',
+      role: 'RADIOGRAPHER',
+      to: 'SIMULATION_DATES_GIVEN',
+      toLabel: 'Dates given',
+      requiresReason: false,
+      requiresAssignment: false,
+    },
+    {
+      from: 'SIMULATION_DATES_GIVEN',
+      fromLabel: 'Dates given',
+      action: 'START_TREATMENT',
+      actionLabel: 'Start treatment',
+      role: 'RADIOGRAPHER',
+      to: 'TREATMENT_STARTED',
+      toLabel: 'Treatment started',
+      requiresReason: false,
+      requiresAssignment: false,
+    },
+  ],
+};
+
+const auditEntry = (id, action, rtNumber, actorName, minutes, after = null) => ({
+  id,
+  occurredAt: minutesAgo(minutes),
+  action,
+  entityType: rtNumber ? 'RT_CHART' : 'STAFF_USER',
+  entityId: rtNumber ?? 'x',
+  rtNumber,
+  actorName,
+  actorRoles: ['CONSULTANT'],
+  before: null,
+  after,
+});
+
+const AUDIT = [
+  auditEntry('a-1', 'STAFF_CREATED', null, 'Synthetic Consultant', 5, { username: 'someone.new' }),
+  auditEntry('a-2', 'ACTION_PERFORMED', 'SEED-001', 'Synthetic Consultant', 30, { stage: 'CONTOURING' }),
+  auditEntry('a-3', 'CHART_ISSUED', 'SEED-001', 'Synthetic Consultant', 60),
+  auditEntry('a-4', 'CHART_ISSUED', 'SEED-002', 'Synthetic Consultant', 90),
+];
 
 const notifications = [
   {
@@ -275,6 +369,119 @@ const server = createServer(async (request, response) => {
   const route = new URL(url, 'http://mock');
   const staffToken = bearer(request);
   const signedIn = staffToken && staffToken !== 'unknown-token' && !revokedTokens.has(staffToken);
+
+  if (route.pathname.startsWith('/api/v1/admin')) {
+    if (!signedIn) return unauthorized(response);
+
+    const allowed = profileFor(staffToken).capabilities;
+    const need = capability =>
+      allowed.includes(capability) ||
+      (refuse(response, 403, 'CAPABILITY_REQUIRED', 'You do not have permission to use this page.'), false);
+
+    if (method === 'GET' && route.pathname === '/api/v1/admin/workflow') {
+      return send(response, 200, { workflow: WORKFLOW });
+    }
+
+    if (route.pathname === '/api/v1/admin/audit' && method === 'GET') {
+      if (!need('VIEW_AUDIT')) return;
+
+      const rt = (route.searchParams.get('rt') ?? '').toUpperCase();
+      const action = route.searchParams.get('action') ?? '';
+      const limit = Number(route.searchParams.get('limit') ?? 50);
+      const offset = Number(route.searchParams.get('offset') ?? 0);
+      const matching = AUDIT.filter(entry => (!rt || entry.rtNumber === rt) && (!action || entry.action === action));
+
+      return send(response, 200, {
+        items: matching.slice(offset, offset + limit),
+        total: matching.length,
+        actions: [...new Set(AUDIT.map(entry => entry.action))].sort(),
+      });
+    }
+
+    if (route.pathname === '/api/v1/admin/staff' && method === 'GET') {
+      if (!need('MANAGE_STAFF')) return;
+
+      return send(response, 200, { items: [...staffMembers.values()] });
+    }
+
+    if (route.pathname === '/api/v1/admin/staff' && method === 'POST') {
+      if (!need('MANAGE_STAFF')) return;
+
+      const body = await readJson(request);
+      const username = String(body.username ?? '')
+        .trim()
+        .toLowerCase();
+      const problems = [];
+
+      if (!/^[a-z0-9][a-z0-9._-]{2,49}$/.test(username)) {
+        problems.push({ field: 'username', message: 'Use 3 to 50 letters, numbers, dots, dashes or underscores.' });
+      }
+      if (!String(body.fullName ?? '').trim()) problems.push({ field: 'fullName', message: 'Enter the full name.' });
+      if (!Array.isArray(body.roles) || body.roles.length === 0) {
+        problems.push({ field: 'roles', message: 'Choose at least one role.' });
+      }
+      if (String(body.password ?? '').length < 12) {
+        problems.push({ field: 'password', message: 'Use at least 12 characters.' });
+      }
+      if (problems.length > 0)
+        return refuse(response, 400, 'VALIDATION_FAILED', 'Some fields need attention.', problems);
+      if ([...staffMembers.values()].some(member => member.username === username)) {
+        return refuse(response, 409, 'USERNAME_TAKEN', 'That username is already used.', [
+          { field: 'username', message: 'That username is already used.' },
+        ]);
+      }
+
+      const member = {
+        id: `00000000-0000-4000-8000-0000000001${String(staffMembers.size).padStart(2, '0')}`,
+        username,
+        fullName: String(body.fullName).trim(),
+        roles: body.roles,
+        capabilities: body.capabilities ?? [],
+        isActive: true,
+        isAvailable: true,
+        createdAt: new Date().toISOString(),
+        lastLoginAt: null,
+      };
+
+      staffMembers.set(member.id, member);
+
+      return send(response, 201, member);
+    }
+
+    const staffRoute = route.pathname.match(/^\/api\/v1\/admin\/staff\/([^/]+)(\/password)?$/);
+
+    if (staffRoute && method === 'POST') {
+      if (!need('MANAGE_STAFF')) return;
+
+      const member = staffMembers.get(staffRoute[1]);
+
+      if (!member) return refuse(response, 404, 'STAFF_NOT_FOUND', 'No such staff account.');
+
+      const body = await readJson(request);
+
+      if (staffRoute[2]) {
+        if (String(body.password ?? '').length < 12) {
+          return refuse(response, 400, 'VALIDATION_FAILED', 'Some fields need attention.', [
+            { field: 'password', message: 'Use at least 12 characters.' },
+          ]);
+        }
+
+        return send(response, 200, member);
+      }
+
+      if (member.id === PROFILE.id && body.isActive === false) {
+        return refuse(response, 409, 'CANNOT_SWITCH_OFF_SELF', 'You cannot switch off your own account.');
+      }
+
+      for (const key of ['fullName', 'roles', 'capabilities', 'isActive', 'isAvailable']) {
+        if (body[key] !== undefined) member[key] = body[key];
+      }
+
+      return send(response, 200, member);
+    }
+
+    return refuse(response, 404, 'NOT_FOUND', 'No such page.');
+  }
 
   if (route.pathname.startsWith('/api/v1/notifications')) {
     if (!signedIn) return unauthorized(response);

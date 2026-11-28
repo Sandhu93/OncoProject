@@ -18,6 +18,9 @@ export const PROTECTED_ROUTES = [
   '/saturday',
   '/stages',
   '/charts',
+  '/workflow',
+  '/staff',
+  '/audit',
   '/notifications',
 ];
 

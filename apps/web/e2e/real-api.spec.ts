@@ -20,7 +20,7 @@ test.describe('WEB-020 the web app with the real API', () => {
     await expect(page).toHaveURL('/dashboard');
     await expect(page.getByRole('heading', { name: 'Signed in as Real Test Consultant' })).toBeVisible();
     await expect(page.getByText('Roles: Consultant')).toBeVisible();
-    await expect(page.getByText('Also allowed to: View audit trail')).toBeVisible();
+    await expect(page.getByText('Also allowed to: Manage staff, View audit trail')).toBeVisible();
   });
 
   test('another account sees its own role, not a role chosen in the browser', async ({ page }) => {

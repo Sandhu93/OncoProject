@@ -376,3 +376,91 @@ export interface Calendar {
   /** Every day from `from` to `to`, with its appointments in time order. */
   days: readonly CalendarDay[];
 }
+
+/** A staff account as the staff-management screen sees it. Never includes the password. */
+export interface StaffMember {
+  id: string;
+  username: string;
+  fullName: string;
+  roles: readonly ClinicalRole[];
+  capabilities: readonly StaffCapability[];
+  /** Can sign in. A switched-off account keeps its history but cannot sign in. */
+  isActive: boolean;
+  /** Offered when a chart is assigned (for example to contour); false while on leave. */
+  isAvailable: boolean;
+  createdAt: string;
+  lastLoginAt: string | null;
+}
+
+export interface CreateStaffRequest {
+  username: string;
+  fullName: string;
+  roles: readonly ClinicalRole[];
+  capabilities: readonly StaffCapability[];
+  password: string;
+}
+
+/** Only what is sent changes. Roles and capabilities replace the whole set. */
+export interface UpdateStaffRequest {
+  fullName?: string;
+  roles?: readonly ClinicalRole[];
+  capabilities?: readonly StaffCapability[];
+  isActive?: boolean;
+  isAvailable?: boolean;
+}
+
+export interface WorkflowStageView {
+  code: string;
+  label: string;
+  phase: string | null;
+  position: number;
+  isInitial: boolean;
+  isTerminal: boolean;
+  /** Roles that post a Saturday update in this stage (empty when none). */
+  weeklyUpdateRoles: readonly ClinicalRole[];
+}
+
+export interface WorkflowTransitionView {
+  from: string;
+  fromLabel: string;
+  action: string;
+  /** What the step is called on screen. */
+  actionLabel: string;
+  role: ClinicalRole;
+  to: string;
+  toLabel: string;
+  requiresReason: boolean;
+  requiresAssignment: boolean;
+}
+
+/** The workflow the department is running, to read. */
+export interface WorkflowView {
+  code: string;
+  version: number;
+  label: string;
+  status: 'ACTIVE';
+  approvedBy: string | null;
+  approvedAt: string | null;
+  stages: readonly WorkflowStageView[];
+  transitions: readonly WorkflowTransitionView[];
+}
+
+export interface AuditEntry {
+  id: string;
+  occurredAt: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  rtNumber: string | null;
+  actorName: string | null;
+  actorRoles: readonly string[];
+  before: unknown;
+  after: unknown;
+}
+
+export interface AuditList {
+  items: readonly AuditEntry[];
+  total: number;
+  /** Every action name that appears in the trail, for the filter. */
+  actions: readonly string[];
+}

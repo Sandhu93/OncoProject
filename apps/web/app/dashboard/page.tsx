@@ -30,7 +30,7 @@ export default async function DashboardPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 p-8">
-      <AppHeader current="dashboard" fullName={staff.fullName} />
+      <AppHeader current="dashboard" fullName={staff.fullName} capabilities={staff.capabilities} />
       <AutoRefresh />
 
       <h1 className="text-2xl font-semibold">Dashboard</h1>

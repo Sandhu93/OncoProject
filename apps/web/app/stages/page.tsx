@@ -17,7 +17,7 @@ export default async function StagesPage() {
 
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
-      <AppHeader current="stages" fullName={staff.fullName} />
+      <AppHeader current="stages" fullName={staff.fullName} capabilities={staff.capabilities} />
       <AutoRefresh />
 
       <h1 className="text-2xl font-semibold">Stages</h1>
