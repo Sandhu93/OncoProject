@@ -103,6 +103,24 @@ const makeChart = (rtNumber, change = {}) => {
   };
 };
 
+const notifications = [
+  {
+    id: 'n-1',
+    kind: 'YOUR_TURN',
+    message: 'SEED-001 is now at Contouring, waiting for the assigned junior resident to submit contouring.',
+    rtNumber: 'SEED-001',
+    createdAt: new Date(Date.now() - 3_600_000).toISOString(),
+    readAt: null,
+  },
+  {
+    id: 'n-2',
+    kind: 'SENT_BACK',
+    message: 'SEED-002 was sent back to Contouring by Dr Rao. Reason: Brain stem is missing.',
+    rtNumber: 'SEED-002',
+    createdAt: new Date(Date.now() - 7_200_000).toISOString(),
+    readAt: null,
+  },
+];
 const charts = new Map();
 
 const seed = () => {
@@ -252,6 +270,41 @@ const server = createServer(async (request, response) => {
   const route = new URL(url, 'http://mock');
   const staffToken = bearer(request);
   const signedIn = staffToken && staffToken !== 'unknown-token' && !revokedTokens.has(staffToken);
+
+  if (route.pathname.startsWith('/api/v1/notifications')) {
+    if (!signedIn) return unauthorized(response);
+
+    const unread = () => notifications.filter(item => !item.readAt).length;
+
+    if (method === 'GET' && route.pathname === '/api/v1/notifications') {
+      return send(response, 200, { items: notifications, unread: unread() });
+    }
+
+    if (method === 'GET' && route.pathname === '/api/v1/notifications/unread-count') {
+      return send(response, 200, { unread: unread() });
+    }
+
+    if (method === 'POST' && route.pathname === '/api/v1/notifications/read-all') {
+      const marked = unread();
+
+      for (const item of notifications) item.readAt ??= new Date().toISOString();
+
+      return send(response, 200, { marked });
+    }
+
+    const read = route.pathname.match(/^\/api\/v1\/notifications\/([^/]+)\/read$/);
+
+    if (method === 'POST' && read) {
+      const item = notifications.find(candidate => candidate.id === read[1]);
+
+      if (!item)
+        return send(response, 404, { code: 'NOTIFICATION_NOT_FOUND', message: 'That notification does not exist.' });
+
+      item.readAt ??= new Date().toISOString();
+
+      return send(response, 200, { ok: true });
+    }
+  }
 
   if (route.pathname.startsWith('/api/v1/charts')) {
     if (!signedIn) return unauthorized(response);

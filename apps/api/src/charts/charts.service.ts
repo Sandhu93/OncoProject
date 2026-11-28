@@ -9,6 +9,7 @@ import type {
 } from '@oncotrack/contracts';
 import type { Actor } from '../auth/actor.js';
 import { DatabaseService, type Queryable } from '../database/database.service.js';
+import { NotificationService } from '../notifications/notification.service.js';
 import { CommandService } from '../transactions/command.service.js';
 import { DomainError } from '../transactions/domain-error.js';
 import { STAGE_INFO } from './actions/stage-info.js';
@@ -83,6 +84,7 @@ export class ChartsService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(CommandService) private readonly commands: CommandService,
+    @Inject(NotificationService) private readonly notifications: NotificationService,
   ) {}
 
   async issue(actor: Actor, key: string | undefined, body: unknown) {
@@ -156,11 +158,23 @@ export class ChartsService {
             chartId,
           ],
         );
-        await tx.query(
-          `INSERT INTO outbox_events(chart_id, event_type, payload)
-           VALUES ($1, 'CHART_ISSUED', $2::jsonb)`,
+        const event = await tx.query<{ id: string }>(
+          `INSERT INTO outbox_events(chart_id, event_type, payload, processed_at)
+           VALUES ($1, 'CHART_ISSUED', $2::jsonb, now()) RETURNING id`,
           [chartId, JSON.stringify({ chartId, rtNumber: input.rtNumber, stage: active.stage })],
         );
+        const first = await tx.query<{ label: string }>(
+          `SELECT label FROM workflow_stages WHERE workflow_id = $1 AND code = $2`,
+          [active.id, active.stage],
+        );
+        await this.notifications.chartMoved(tx, {
+          chartId,
+          rtNumber: input.rtNumber,
+          eventId: event.rows[0]!.id,
+          stage: active.stage,
+          stageLabel: first.rows[0]?.label ?? active.stage,
+          actor,
+        });
         const created = await this.loadSummary(tx, chartId);
         return { status: 201, body: created };
       },

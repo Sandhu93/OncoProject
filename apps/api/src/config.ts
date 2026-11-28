@@ -18,11 +18,17 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   if (!Number.isInteger(stallDays) || stallDays < 1 || stallDays > 60) {
     throw new Error('STALL_DAYS must be an integer between 1 and 60.');
   }
+  // How often reminders (stalled charts, Saturday updates) are created; 0 switches the timer off.
+  const sweepMinutes = Number(env.NOTIFICATION_SWEEP_MINUTES ?? 15);
+  if (!Number.isInteger(sweepMinutes) || sweepMinutes < 0 || sweepMinutes > 1440) {
+    throw new Error('NOTIFICATION_SWEEP_MINUTES must be an integer between 0 and 1440.');
+  }
   return {
     port,
     host: env.API_HOST ?? '127.0.0.1',
     databaseUrl: env.DATABASE_URL,
     sessionTtlHours,
     stallDays,
+    sweepMinutes,
   };
 }

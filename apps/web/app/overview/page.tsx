@@ -10,6 +10,7 @@ import StaffService from '@/services/api/staff.service';
 import { matchesFilter, OVERVIEW_FILTERS, type OverviewFilter, overviewOrder } from '@/views/charts/queue';
 import { KpiTiles, OverviewTable } from '@/views/charts/QueueViews';
 import AppHeader from '@/views/layout/AppHeader';
+import AutoRefresh from '@/views/layout/AutoRefresh';
 
 export const metadata: Metadata = { title: 'Overview' };
 
@@ -35,6 +36,7 @@ export default async function OverviewPage({ searchParams }: { searchParams: Sea
   return (
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 p-8">
       <AppHeader current="overview" fullName={staff.fullName} />
+      <AutoRefresh />
 
       <h1 className="text-2xl font-semibold">Overview</h1>
 

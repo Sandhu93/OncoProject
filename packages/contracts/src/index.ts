@@ -286,6 +286,22 @@ export interface ChartQueue {
   };
 }
 
+/** One line in a person's inbox. */
+export interface NotificationItem {
+  id: string;
+  /** YOUR_TURN, SENT_BACK, ASSIGNED, STALLED, WEEKLY_DUE, COMMENT or FINISHED. */
+  kind: string;
+  message: string;
+  rtNumber: string | null;
+  createdAt: string;
+  readAt: string | null;
+}
+
+export interface NotificationList {
+  items: readonly NotificationItem[];
+  unread: number;
+}
+
 /** Error body for every refused request. `details` lists the fields that failed validation. */
 export interface ApiErrorBody {
   code: string;

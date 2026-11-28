@@ -1,8 +1,10 @@
 import Link from 'next/link';
 
+import NotificationBell from './NotificationBell';
+
 interface AppHeaderProps {
   /** The page the user is on, so its link can be marked as current. */
-  current: 'dashboard' | 'overview' | 'charts';
+  current: 'dashboard' | 'overview' | 'charts' | 'notifications';
   fullName: string;
 }
 
@@ -28,6 +30,7 @@ export default function AppHeader({ current, fullName }: AppHeaderProps) {
             {item.label}
           </Link>
         ))}
+        <NotificationBell current={current === 'notifications'} />
       </nav>
       <div className="flex items-center gap-4">
         <span className="text-sm text-zinc-600 dark:text-zinc-400">{fullName}</span>

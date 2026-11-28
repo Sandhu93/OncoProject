@@ -9,6 +9,7 @@ export const REQUIRED_MIGRATIONS = [
   '003_remove_patient_identity.sql',
   '004_chart_attributes.sql',
   '005_chart_actions.sql',
+  '006_notifications.sql',
 ] as const;
 
 export type SqlParams = readonly unknown[];

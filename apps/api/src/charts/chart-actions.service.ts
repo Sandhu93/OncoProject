@@ -15,6 +15,7 @@ import { readValues, refuse } from './actions/fields.js';
 import { saturdayOnOrBefore } from './actions/dates.js';
 import { recordedFacts } from './actions/recorded.js';
 import type { ActionContext, ActionDefinition, ChartData, FieldDef } from './actions/types.js';
+import { NotificationService } from '../notifications/notification.service.js';
 import { ChartsService } from './charts.service.js';
 import { normaliseRtNumber } from './issue-chart.parse.js';
 
@@ -72,6 +73,7 @@ export class ChartActionsService {
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(CommandService) private readonly commands: CommandService,
     @Inject(ChartsService) private readonly charts: ChartsService,
+    @Inject(NotificationService) private readonly notifications: NotificationService,
   ) {}
 
   /** A chart with its history and the steps this person may take on it now. */
@@ -246,8 +248,9 @@ export class ChartActionsService {
             keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
           ],
         );
-        await tx.query(
-          `INSERT INTO outbox_events(chart_id, event_type, payload) VALUES ($1, $3, $2::jsonb)`,
+        const event = await tx.query<{ id: string }>(
+          `INSERT INTO outbox_events(chart_id, event_type, payload, processed_at)
+           VALUES ($1, $3, $2::jsonb, now()) RETURNING id`,
           [
             chart.id,
             JSON.stringify({
@@ -260,9 +263,61 @@ export class ChartActionsService {
             keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
           ],
         );
+        if (!keeps) {
+          await this.tellPeople(tx, {
+            actor,
+            chart,
+            eventId: event.rows[0]!.id,
+            action,
+            toStage: transition.to_stage,
+            reason: transition.requires_reason ? (reason ?? null) : null,
+            data,
+          });
+        }
         return { status: 200, body: await this.view(actor, number, tx) };
       },
     );
+  }
+
+  /** Tells whoever the chart is now waiting for (inside the step's own transaction). */
+  private async tellPeople(
+    tx: Queryable,
+    input: {
+      actor: Actor;
+      chart: ChartState;
+      eventId: string;
+      action: string;
+      toStage: string;
+      reason: string | null;
+      data: ChartData;
+    },
+  ): Promise<void> {
+    const target = await tx.query<{ label: string; is_terminal: boolean }>(
+      `SELECT label, is_terminal FROM workflow_stages WHERE workflow_id = $1 AND code = $2`,
+      [input.chart.workflow_id, input.toStage],
+    );
+    const stage = target.rows[0];
+    const base = {
+      chartId: input.chart.id,
+      rtNumber: input.chart.display_number,
+      eventId: input.eventId,
+      actor: input.actor,
+    };
+    if (stage?.is_terminal) {
+      await this.notifications.chartFinished(tx, base);
+    } else if (input.action === 'ASSIGN_CONTOURING') {
+      await this.notifications.contouringAssigned(tx, {
+        ...base,
+        due: input.data.contourDue ?? null,
+      });
+    } else {
+      await this.notifications.chartMoved(tx, {
+        ...base,
+        stage: input.toStage,
+        stageLabel: stage?.label ?? input.toStage,
+        sentBackReason: input.reason,
+      });
+    }
   }
 
   private async loadState(db: Queryable, rtNumber: string, lock: boolean): Promise<ChartState> {

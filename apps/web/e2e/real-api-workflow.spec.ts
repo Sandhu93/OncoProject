@@ -382,3 +382,36 @@ test.describe('WEB-055 the queue follows the workflow', () => {
     await expect(page.getByRole('progressbar', { name: 'Stage 1 of 14' }).first()).toBeVisible();
   });
 });
+
+test.describe('WEB-056 notifications follow the workflow', () => {
+  const rtNumber = `WF/${STAMP}/N`;
+
+  test('the radiographer is told when a chart is issued, and reading it clears the bell', async ({ page, request }) => {
+    await request.post(`${CONTROL}/activate-workflow`);
+    await logIn(page, 'real.consultant');
+    await page.goto('/charts/new');
+    await page.getByLabel('RT number').fill(rtNumber);
+    await page.getByLabel('Planned sessions').fill('10');
+    await page.getByRole('button', { name: 'Issue chart' }).click();
+    await expect(page).toHaveURL(/\/charts\//);
+
+    // The person who issued it is not told about their own step.
+    await page.goto('/notifications');
+    await expect(page.getByText(rtNumber)).toHaveCount(0);
+
+    await logIn(page, 'real.radiographer');
+    await expect(page.getByRole('link', { name: /^Inbox/ })).toContainText(/\d+/);
+
+    await page.getByRole('link', { name: /^Inbox/ }).click();
+    const item = page.getByRole('listitem').filter({ hasText: rtNumber });
+
+    await expect(item).toContainText('waiting for the radiographer to give mould and CT Sim dates');
+    await expect(item.getByText('New', { exact: true })).toBeVisible();
+
+    await item.getByRole('button', { name: 'Mark as read' }).click();
+    await expect(item.getByText('New', { exact: true })).toHaveCount(0);
+
+    await item.getByRole('link', { name: `Open ${rtNumber}` }).click();
+    await expect(page.getByRole('heading', { name: rtNumber })).toBeVisible();
+  });
+});

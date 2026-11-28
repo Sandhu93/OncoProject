@@ -177,6 +177,62 @@ paths:
                 $ref: '#/components/schemas/ChartQueue'
         '401':
           description: Not signed in
+  /notifications:
+    get:
+      operationId: listNotifications
+      summary: The signed-in person's inbox, newest first
+      parameters:
+        - { name: limit, in: query, schema: { type: integer, default: 50, maximum: 200 } }
+      responses:
+        '200':
+          description: The notifications and how many are unread
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationList'
+        '401':
+          description: Not signed in
+  /notifications/unread-count:
+    get:
+      operationId: getUnreadNotificationCount
+      responses:
+        '200':
+          description: How many notifications are unread
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [unread]
+                properties:
+                  unread: { type: integer }
+        '401':
+          description: Not signed in
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      responses:
+        '200':
+          description: How many were marked read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  marked: { type: integer }
+        '401':
+          description: Not signed in
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Marked read
+        '401':
+          description: Not signed in
+        '404':
+          description: NOTIFICATION_NOT_FOUND, including a notification that belongs to someone else
   /charts/by-number/{rtNumber}:
     get:
       operationId: getChartByNumber
@@ -292,6 +348,28 @@ components:
         planId: { type: string, maxLength: 60 }
         contourSetName: { type: string, maxLength: 60 }
         scanReference: { type: string, maxLength: 60 }
+    NotificationItem:
+      type: object
+      required: [id, kind, message, rtNumber, createdAt, readAt]
+      properties:
+        id: { type: string, format: uuid }
+        kind:
+          {
+            type: string,
+            enum: [YOUR_TURN, SENT_BACK, ASSIGNED, STALLED, WEEKLY_DUE, COMMENT, FINISHED],
+          }
+        message: { type: string }
+        rtNumber: { type: [string, 'null'] }
+        createdAt: { type: string, format: date-time }
+        readAt: { type: [string, 'null'], format: date-time }
+    NotificationList:
+      type: object
+      required: [items, unread]
+      properties:
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/NotificationItem' }
+        unread: { type: integer }
     QueueItem:
       type: object
       required:

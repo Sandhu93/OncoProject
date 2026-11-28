@@ -10,6 +10,7 @@ import StaffService from '@/services/api/staff.service';
 import { queueSummary } from '@/views/charts/queue';
 import { ElsewhereList, NeedsYouList } from '@/views/charts/QueueViews';
 import AppHeader from '@/views/layout/AppHeader';
+import AutoRefresh from '@/views/layout/AutoRefresh';
 
 export const metadata: Metadata = {
   title: 'Dashboard',
@@ -30,6 +31,7 @@ export default async function DashboardPage() {
   return (
     <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 p-8">
       <AppHeader current="dashboard" fullName={staff.fullName} />
+      <AutoRefresh />
 
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 

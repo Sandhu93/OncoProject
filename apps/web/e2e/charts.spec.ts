@@ -297,3 +297,30 @@ test.describe('WEB-060 the queue and the overview', () => {
     await expect(page.getByRole('progressbar').first()).toBeVisible();
   });
 });
+
+test.describe('WEB-070 the inbox', () => {
+  test.beforeEach(async ({ context, baseURL }) => {
+    await signIn(context, baseURL!);
+  });
+
+  test('lists what has reached the person, marks them read, and the bell follows', async ({ page }) => {
+    await page.goto('/notifications');
+
+    await expect(page.getByRole('heading', { name: 'Inbox', level: 1 })).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText('2 unread.');
+    await expect(page.getByRole('link', { name: /^Inbox/ })).toContainText('2');
+
+    const list = page.getByRole('list', { name: 'Notifications' });
+    const sentBack = list.getByRole('listitem').filter({ hasText: 'Brain stem is missing.' });
+
+    await expect(sentBack).toContainText('Sent back');
+    await expect(sentBack.getByRole('link', { name: 'Open SEED-002' })).toHaveAttribute('href', '/charts/SEED-002');
+
+    await sentBack.getByRole('button', { name: 'Mark as read' }).click();
+    await expect(page.getByRole('status')).toHaveText('1 unread.');
+
+    await page.getByRole('button', { name: 'Mark all as read' }).click();
+    await expect(page.getByRole('status')).toHaveText('Nothing new.');
+    await expect(page.getByRole('button', { name: 'Mark all as read' })).toHaveCount(0);
+  });
+});

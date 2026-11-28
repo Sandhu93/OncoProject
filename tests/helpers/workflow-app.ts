@@ -5,6 +5,7 @@ import request from 'supertest';
 import { AppModule } from '../../apps/api/src/app.module.js';
 import { configureApp } from '../../apps/api/src/bootstrap.js';
 import { DatabaseService } from '../../apps/api/src/database/database.service.js';
+import { NotificationService } from '../../apps/api/src/notifications/notification.service.js';
 import { addStaff, createTestDatabase } from './test-database.js';
 
 export type Role =
@@ -90,10 +91,23 @@ export async function startWorkflowApp() {
       key,
     );
 
+  const notifications = app.get(NotificationService);
   const close = async () => {
     await app.close();
     await test.close();
   };
-  return { test, http, as, signIn, consultant, issueChart, chart, act, close, people };
+  return {
+    test,
+    http,
+    as,
+    signIn,
+    consultant,
+    issueChart,
+    chart,
+    act,
+    close,
+    people,
+    notifications,
+  };
 }
 export type WorkflowApp = Awaited<ReturnType<typeof startWorkflowApp>>;

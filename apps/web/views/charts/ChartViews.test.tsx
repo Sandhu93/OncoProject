@@ -31,6 +31,7 @@ const chart = (change: Partial<ChartSummary> = {}): ChartSummary => ({
 });
 
 vi.mock('@/app/charts/[rtNumber]/actions', () => ({ performAction: vi.fn() }));
+vi.mock('@/app/notifications/actions', () => ({ getUnreadCount: vi.fn(() => Promise.resolve(0)) }));
 
 describe('ChartTable', () => {
   it('links each RT number to its chart, encoded', () => {

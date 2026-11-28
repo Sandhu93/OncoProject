@@ -10,10 +10,13 @@ import { ChartsController } from './charts/charts.controller.js';
 import { ChartsService } from './charts/charts.service.js';
 import { DatabaseService } from './database/database.service.js';
 import { HealthController } from './health/health.controller.js';
+import { NotificationService } from './notifications/notification.service.js';
+import { NotificationScheduler } from './notifications/notification.scheduler.js';
+import { NotificationsController } from './notifications/notifications.controller.js';
 import { CommandService } from './transactions/command.service.js';
 
 @Module({
-  controllers: [HealthController, AuthController, ChartsController],
+  controllers: [HealthController, AuthController, ChartsController, NotificationsController],
   providers: [
     DatabaseService,
     SessionService,
@@ -22,6 +25,8 @@ import { CommandService } from './transactions/command.service.js';
     ChartsService,
     ChartActionsService,
     QueueService,
+    NotificationService,
+    NotificationScheduler,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })
