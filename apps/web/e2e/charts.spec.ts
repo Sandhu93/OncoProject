@@ -196,3 +196,59 @@ test.describe('WEB-033 who can issue charts', () => {
     await expect(page.getByLabel('RT number')).toHaveCount(0);
   });
 });
+
+test.describe('WEB-050 recording a workflow step', () => {
+  test.beforeEach(async ({ context, baseURL }) => {
+    await signIn(context, baseURL!);
+  });
+
+  test('shows who the chart waits for and the step form, and records it', async ({ page }) => {
+    await page.goto('/charts/STEP-1');
+
+    await expect(
+      page.getByText('Waiting for the radiographer to give mould and CT Sim dates (Radiographer).'),
+    ).toBeVisible();
+    await expect(page.getByRole('form', { name: 'Give mould and CT Sim dates' })).toBeVisible();
+    await expect(page.getByLabel('Note (optional)')).toHaveAccessibleDescription('Anything the patient should know.');
+
+    await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
+
+    await expect(page.getByText('Waiting for the patient to attend the mould appointment')).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Recorded so far' })).toBeVisible();
+    await expect(page.getByText('Mould appointment', { exact: true })).toBeVisible();
+    await expect(
+      page.getByRole('row', { name: /Give simulation dates|GIVE SIMULATION DATES|give simulation dates/i }),
+    ).toContainText('Mould booked for 2030-01-02 10:00.');
+  });
+
+  test('keeps what was typed and explains a field that needs attention', async ({ page }) => {
+    await page.goto('/charts/STEP-2');
+    await page.getByLabel('Mould date').fill('');
+    await page.getByLabel('Note (optional)').fill('Come early.');
+    await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
+
+    await expect(page.getByText('Enter mould date.')).toBeVisible();
+    await expect(page.getByLabel('Mould date')).toHaveAttribute('aria-invalid', 'true');
+    await expect(page.getByLabel('Mould date')).toHaveAccessibleDescription('Enter mould date.');
+    await expect(page.getByLabel('Note (optional)')).toHaveValue('Come early.');
+    await expect(page).toHaveURL('/charts/STEP-2');
+  });
+
+  test('tells the person when the chart changed while they were working', async ({ page }) => {
+    await page.goto('/charts/CHANGED-1');
+    await page.getByRole('button', { name: 'Give mould and CT Sim dates' }).click();
+
+    await expect(page.getByRole('alert').filter({ hasText: 'changed while you were working' })).toBeVisible();
+  });
+
+  test('a person who cannot do the step is not offered the form', async ({ page, context, baseURL }) => {
+    await signIn(context, baseURL!, 'resident-token');
+    await page.goto('/charts/SEED-001');
+
+    await expect(
+      page.getByText('Waiting for a junior resident to submit the contours (Junior resident).'),
+    ).toBeVisible();
+    await expect(page.getByText('This step is not yours to take.')).toBeVisible();
+    await expect(page.getByRole('form')).toHaveCount(0);
+  });
+});

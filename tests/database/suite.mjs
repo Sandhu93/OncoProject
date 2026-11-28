@@ -851,5 +851,33 @@ export function registerSchemaTests(name, createDatabase) {
         );
       });
     });
+    it("DB-031 keeps each step's details and the chart's facts as JSON objects, and history stays append-only", async () => {
+      await fixture(async (client, { chart }) => {
+        const row = (await client.query('SELECT data FROM rt_charts WHERE id = $1', [chart]))
+          .rows[0];
+        assert.deepEqual(row.data, {});
+        await client.query('UPDATE rt_charts SET data = $2::jsonb WHERE id = $1', [
+          chart,
+          '{"mouldDoneOn":"2026-12-01"}',
+        ]);
+        await refuses(
+          client,
+          'UPDATE rt_charts SET data = $2::jsonb WHERE id = $1',
+          [chart, '[1]'],
+          /check/i,
+        );
+        const history = await client.query(
+          "INSERT INTO chart_stage_history(chart_id, workflow_id, from_stage, to_stage, action, actor_id, actor_roles, chart_version, details, summary) SELECT c.id, c.workflow_id, NULL, c.current_stage, 'X', c.created_by, '{CONSULTANT}', 99, '{\"a\":\"b\"}', 'ok' FROM rt_charts c WHERE c.id = $1 RETURNING details, summary",
+          [chart],
+        );
+        assert.deepEqual(history.rows[0], { details: { a: 'b' }, summary: 'ok' });
+        await refuses(
+          client,
+          "UPDATE chart_stage_history SET summary = 'changed'",
+          [],
+          /append-only/i,
+        );
+      });
+    });
   });
 }

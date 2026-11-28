@@ -4,6 +4,7 @@ import { AccessGuard } from './auth/access.guard.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
 import { SessionService } from './auth/session.service.js';
+import { ChartActionsService } from './charts/chart-actions.service.js';
 import { ChartsController } from './charts/charts.controller.js';
 import { ChartsService } from './charts/charts.service.js';
 import { DatabaseService } from './database/database.service.js';
@@ -18,6 +19,7 @@ import { CommandService } from './transactions/command.service.js';
     AuthService,
     CommandService,
     ChartsService,
+    ChartActionsService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
 })

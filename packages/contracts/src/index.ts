@@ -141,12 +141,20 @@ export interface ChartSummary {
   planId: string | null;
   contourSetName: string | null;
   scanReference: string | null;
+  /** The workflow phase this stage belongs to (Getting ready, Contouring, Planning, Treatment). */
+  phase: string | null;
+  /** Who the chart is waiting for, in plain words ("the radiographer to give mould and CT Sim dates"). */
+  waitingFor: string | null;
+  /** The role that can take the next step; null when tracking has ended. */
+  ownerRole: ClinicalRole | null;
   issuedBy: string;
   createdAt: string;
 }
 
 export interface ChartHistoryEntry {
   action: string;
+  /** One plain sentence of what was recorded, written by the step (e.g. "Mould done on 3 Dec 2026."). */
+  summary: string | null;
   fromStage: string | null;
   fromStageLabel: string | null;
   toStage: string;
@@ -157,8 +165,63 @@ export interface ChartHistoryEntry {
   occurredAt: string;
 }
 
+/** One field of a step's form. The API owns the rules; screens only draw what they are given. */
+export type ActionFieldType =
+  'heading' | 'text' | 'area' | 'date' | 'time' | 'number' | 'select' | 'staff';
+
+export interface ActionField {
+  key: string;
+  label: string;
+  type: ActionFieldType;
+  required: boolean;
+  help?: string;
+  placeholder?: string;
+  maxLength?: number;
+  /** Earliest date (YYYY-MM-DD) or smallest number. */
+  min?: string;
+  /** Latest date (YYYY-MM-DD) or largest number. */
+  max?: string;
+  /** What the field starts with. */
+  default?: string;
+  options?: readonly { value: string; label: string }[];
+  /** For `staff` fields: the role whose members can be chosen. */
+  staffRole?: ClinicalRole;
+}
+
+/** A condition the step shows before it can be done (for example "Plan approved: not yet"). */
+export interface ActionCheck {
+  label: string;
+  ok: boolean;
+  detail: string;
+}
+
+/** A step the signed-in person can take on this chart right now. */
+export interface AvailableAction {
+  action: string;
+  label: string;
+  /** True for "send back": the person must say why. */
+  requiresReason: boolean;
+  fields: readonly ActionField[];
+  checks: readonly ActionCheck[];
+}
+
+export interface PerformActionRequest {
+  /** The chart version the person saw. A changed chart is refused instead of overwritten. */
+  expectedVersion: number;
+  values: Readonly<Record<string, string>>;
+}
+
+/** Something already recorded on the chart, ready to show. */
+export interface RecordedFact {
+  label: string;
+  value: string;
+}
+
 export interface ChartDetail extends ChartSummary {
   history: readonly ChartHistoryEntry[];
+  recorded: readonly RecordedFact[];
+  /** Steps the signed-in person may take now: empty when it is someone else's turn. */
+  availableActions: readonly AvailableAction[];
 }
 
 export interface ChartList {

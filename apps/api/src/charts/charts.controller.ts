@@ -1,6 +1,7 @@
 import { Body, Controller, Get, Headers, Inject, Param, Post, Query, Res } from '@nestjs/common';
 import type { ChartDetail, ChartList, ChartSummary } from '@oncotrack/contracts';
 import { CurrentActor, type Actor } from '../auth/actor.js';
+import { ChartActionsService } from './chart-actions.service.js';
 import { ChartsService, type ListFilters } from './charts.service.js';
 
 interface ResponseLike {
@@ -10,7 +11,10 @@ interface ResponseLike {
 
 @Controller('charts')
 export class ChartsController {
-  constructor(@Inject(ChartsService) private readonly charts: ChartsService) {}
+  constructor(
+    @Inject(ChartsService) private readonly charts: ChartsService,
+    @Inject(ChartActionsService) private readonly actions: ChartActionsService,
+  ) {}
 
   @Post()
   async issue(
@@ -31,7 +35,23 @@ export class ChartsController {
   }
 
   @Get('by-number/:rtNumber')
-  find(@Param('rtNumber') rtNumber: string): Promise<ChartDetail> {
-    return this.charts.findByNumber(rtNumber);
+  find(@CurrentActor() actor: Actor, @Param('rtNumber') rtNumber: string): Promise<ChartDetail> {
+    return this.actions.view(actor, rtNumber);
+  }
+
+  /** Records one step of the workflow. Send `{ expectedVersion, values }` and an Idempotency-Key header. */
+  @Post('by-number/:rtNumber/actions/:action')
+  async perform(
+    @CurrentActor() actor: Actor,
+    @Param('rtNumber') rtNumber: string,
+    @Param('action') action: string,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ): Promise<ChartDetail> {
+    const result = await this.actions.perform(actor, key, rtNumber, action, body);
+    response.status(result.status);
+    if (result.replayed) response.setHeader('Idempotent-Replayed', 'true');
+    return result.body;
   }
 }

@@ -44,6 +44,7 @@ export interface TestStaff {
   roles?: string[];
   capabilities?: string[];
   active?: boolean;
+  fullName?: string;
 }
 
 export async function addStaff(db: PGlite, options: TestStaff = {}) {
@@ -52,8 +53,14 @@ export async function addStaff(db: PGlite, options: TestStaff = {}) {
   const password = options.password ?? 'correct horse battery';
   await db.query(
     `INSERT INTO staff_users(id, username, full_name, identity_provider, password_hash, is_active)
-     VALUES ($1, $2, 'Synthetic staff', 'LOCAL', $3, $4)`,
-    [id, username, await hashPassword(password), options.active ?? true],
+     VALUES ($1, $2, $5, 'LOCAL', $3, $4)`,
+    [
+      id,
+      username,
+      await hashPassword(password),
+      options.active ?? true,
+      options.fullName ?? 'Synthetic staff',
+    ],
   );
   for (const role of options.roles ?? []) {
     await db.query('INSERT INTO staff_roles(staff_id, role_code) VALUES ($1, $2)', [id, role]);

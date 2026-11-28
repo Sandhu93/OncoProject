@@ -180,6 +180,57 @@ paths:
           description: Not signed in
         '404':
           description: CHART_NOT_FOUND
+  /charts/by-number/{rtNumber}/actions/{action}:
+    post:
+      operationId: performChartAction
+      summary: Record one step of the workflow (give dates, mould done, CT Sim done, ...)
+      description: |
+        The chart's own answer lists the steps the signed-in person can take now (`availableActions`), each with
+        the fields to fill in, their defaults and limits. Send the values in `values`, with the chart `version`
+        you saw in `expectedVersion`. The step, the stage change, its history row (with a plain-language summary),
+        the audit event and the outbox event are written in one transaction. The same `Idempotency-Key` for the
+        same request returns the first answer (`Idempotent-Replayed: true`).
+      security:
+        - bearer: []
+      parameters:
+        - { name: rtNumber, in: path, required: true, schema: { type: string } }
+        - {
+            name: action,
+            in: path,
+            required: true,
+            schema: { type: string, example: GIVE_SIMULATION_DATES },
+          }
+        - { name: Idempotency-Key, in: header, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: false
+              required: [expectedVersion, values]
+              properties:
+                expectedVersion: { type: integer, minimum: 1 }
+                values:
+                  type: object
+                  additionalProperties: { type: string }
+      responses:
+        '200':
+          description: The chart after the step
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartDetail'
+        '400':
+          description: VALIDATION_FAILED, with `details` as a list of { field, message }
+        '401':
+          description: Not signed in
+        '403':
+          description: ROLE_NOT_ALLOWED or NOT_ASSIGNED
+        '404':
+          description: CHART_NOT_FOUND
+        '409':
+          description: CHART_CHANGED (the chart moved on since `expectedVersion`), ACTION_NOT_AVAILABLE (wrong stage) or CHART_CLOSED
 components:
   securitySchemes:
     bearer:

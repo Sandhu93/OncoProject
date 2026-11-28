@@ -8,6 +8,7 @@ export const REQUIRED_MIGRATIONS = [
   '002_numbering_throttle_weekly_updates.sql',
   '003_remove_patient_identity.sql',
   '004_chart_attributes.sql',
+  '005_chart_actions.sql',
 ] as const;
 
 export type SqlParams = readonly unknown[];

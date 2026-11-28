@@ -18,6 +18,9 @@ const summary = {
   planId: null,
   contourSetName: null,
   scanReference: null,
+  phase: 'Contouring',
+  waitingFor: 'a junior resident to submit the contours',
+  ownerRole: 'JUNIOR_RESIDENT',
   issuedBy: 'Synthetic Consultant',
   createdAt: '2026-11-28T00:00:00.000Z',
 };
@@ -58,6 +61,8 @@ describe('ChartService.find', () => {
     expect(
       parserOf()({
         ...summary,
+        recorded: [],
+        availableActions: [],
         history: [
           {
             action: 'ISSUE_CHART',
@@ -68,11 +73,46 @@ describe('ChartService.find', () => {
             actorName: 'Synthetic Consultant',
             actorRoles: ['CONSULTANT'],
             reason: null,
+            summary: null,
             occurredAt: '2026-11-28T00:00:00.000Z',
           },
         ],
       }),
     ).toMatchObject({ rtNumber: 'RT-1' });
+  });
+});
+
+describe('ChartService.perform', () => {
+  it('posts the step with the expected version and the idempotency key, encoding the RT number', async () => {
+    await ChartService.perform(
+      'RT/1',
+      'GIVE_SIMULATION_DATES',
+      { expectedVersion: 3, values: { mouldDate: 'x' } },
+      'k-1',
+    );
+
+    expect(handleRequest).toHaveBeenCalledWith('/charts/by-number/RT%2F1/actions/GIVE_SIMULATION_DATES', {
+      requiresAuth: true,
+      method: 'POST',
+      headers: { 'Idempotency-Key': 'k-1' },
+      body: JSON.stringify({ expectedVersion: 3, values: { mouldDate: 'x' } }),
+      parse: expect.any(Function),
+    });
+  });
+
+  it('reads the available steps and their fields from the answer', async () => {
+    await ChartService.perform('RT-1', 'X', { expectedVersion: 1, values: {} }, 'k');
+
+    const field = { key: 'mouldDate', label: 'Mould date', type: 'date', required: true, default: '2030-01-02' };
+    const parsed = parserOf()({
+      ...summary,
+      recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
+      availableActions: [{ action: 'A', label: 'Do A', requiresReason: false, fields: [field], checks: [] }],
+      history: [],
+    }) as { availableActions: { fields: unknown[] }[] };
+
+    expect(parsed.availableActions[0]!.fields).toEqual([field]);
+    expect(() => parserOf()({ ...summary, recorded: [], availableActions: [{ action: 'A' }], history: [] })).toThrow();
   });
 });
 

@@ -1,6 +1,6 @@
 import type { ChartDetail, ChartSummary } from '@oncotrack/contracts';
 import { render, screen, within } from '@testing-library/react';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 
 import AppHeader from '../layout/AppHeader';
 
@@ -22,10 +22,15 @@ const chart = (change: Partial<ChartSummary> = {}): ChartSummary => ({
   planId: null,
   contourSetName: null,
   scanReference: null,
+  phase: 'Contouring',
+  waitingFor: 'a junior resident to submit the contours',
+  ownerRole: 'JUNIOR_RESIDENT',
   issuedBy: 'Synthetic Consultant',
   createdAt: '2026-11-27T19:34:00.000Z',
   ...change,
 });
+
+vi.mock('@/app/charts/[rtNumber]/actions', () => ({ performAction: vi.fn() }));
 
 describe('ChartTable', () => {
   it('links each RT number to its chart, encoded', () => {
@@ -101,6 +106,8 @@ describe('Pagination', () => {
 describe('ChartDetailView', () => {
   const detail: ChartDetail = {
     ...chart({ planId: 'PLAN-7' }),
+    recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
+    availableActions: [],
     history: [
       {
         action: 'ISSUE_CHART',
@@ -111,6 +118,7 @@ describe('ChartDetailView', () => {
         actorName: 'Synthetic Consultant',
         actorRoles: ['CONSULTANT'],
         reason: null,
+        summary: null,
         occurredAt: '2026-11-27T19:34:00.000Z',
       },
     ],

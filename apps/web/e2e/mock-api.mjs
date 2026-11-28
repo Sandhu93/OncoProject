@@ -12,6 +12,9 @@
  * GET  /api/v1/charts/by-number/:rtNumber     -> chart with history, 404 CHART_NOT_FOUND
  * POST /api/v1/charts   Idempotency-Key       -> 201 chart; 403 for the token "resident-token" (not a consultant);
  *     400 VALIDATION_FAILED, 409 RT_NUMBER_EXISTS, 409 WORKFLOW_NOT_ACTIVE for the RT number "NOWORKFLOW"
+ * POST /api/v1/charts/by-number/:rtNumber/actions/GIVE_SIMULATION_DATES   Idempotency-Key { expectedVersion, values }
+ *     -> 200 chart at "Dates given"; 400 VALIDATION_FAILED when the mould date is empty; 409 CHART_CHANGED for
+ *     the chart "CHANGED-1"; 403 for "resident-token". Only charts at "RT chart issued" offer this step.
  * GET  /revoked-tokens                    ->  tokens revoked so far, for assertions
  */
 import { createServer } from 'node:http';
@@ -54,7 +57,26 @@ const RESIDENT_PROFILE = {
 
 const profileFor = token => (token === 'resident-token' ? RESIDENT_PROFILE : PROFILE);
 
-const STAGE = { code: 'CONTOURING', label: 'Contouring' };
+const STAGES = {
+  CONTOURING: {
+    stage: { code: 'CONTOURING', label: 'Contouring' },
+    phase: 'Contouring',
+    waitingFor: 'a junior resident to submit the contours',
+    ownerRole: 'JUNIOR_RESIDENT',
+  },
+  RT_CHART_ISSUED: {
+    stage: { code: 'RT_CHART_ISSUED', label: 'RT chart issued' },
+    phase: 'Getting ready',
+    waitingFor: 'the radiographer to give mould and CT Sim dates',
+    ownerRole: 'RADIOGRAPHER',
+  },
+  SIMULATION_DATES_GIVEN: {
+    stage: { code: 'SIMULATION_DATES_GIVEN', label: 'Dates given' },
+    phase: 'Getting ready',
+    waitingFor: 'the patient to attend the mould appointment',
+    ownerRole: 'RADIOGRAPHER',
+  },
+};
 const minutesAgo = minutes => new Date(Date.now() - minutes * 60_000).toISOString();
 
 const makeChart = (rtNumber, change = {}) => {
@@ -63,7 +85,7 @@ const makeChart = (rtNumber, change = {}) => {
   return {
     id: `chart-${rtNumber}`,
     rtNumber,
-    stage: STAGE,
+    ...STAGES[change.stageCode ?? 'CONTOURING'],
     stageSince: minutesAgo(minutesInStage),
     minutesInStage,
     status: 'OPEN',
@@ -76,6 +98,7 @@ const makeChart = (rtNumber, change = {}) => {
     issuedBy: 'Synthetic Consultant',
     createdAt: minutesAgo(minutesInStage),
     ...change,
+    stageCode: undefined,
   };
 };
 
@@ -88,6 +111,9 @@ const seed = () => {
     makeChart('SEED-002', { minutesInStage: 3000, plannedSessions: null }),
     makeChart('SEED-CLOSED', { status: 'CLOSED', minutesInStage: 9000 }),
     makeChart('SEED/2026/3', { minutesInStage: 60 }),
+    makeChart('STEP-1', { minutesInStage: 5, stageCode: 'RT_CHART_ISSUED' }),
+    makeChart('STEP-2', { minutesInStage: 5, stageCode: 'RT_CHART_ISSUED' }),
+    makeChart('CHANGED-1', { minutesInStage: 5, stageCode: 'RT_CHART_ISSUED' }),
   ]) {
     charts.set(chart.rtNumber, chart);
   }
@@ -99,6 +125,56 @@ const seed = () => {
 };
 
 seed();
+
+const steps = new Map();
+
+const GIVE_DATES = {
+  action: 'GIVE_SIMULATION_DATES',
+  label: 'Give mould and CT Sim dates',
+  requiresReason: false,
+  checks: [],
+  fields: [
+    { key: 'mouldDate', label: 'Mould date', type: 'date', required: true, default: '2030-01-02' },
+    { key: 'mouldTime', label: 'Mould time', type: 'time', required: true, default: '10:00' },
+    { key: 'bookNote', label: 'Note', type: 'area', required: false, help: 'Anything the patient should know.' },
+  ],
+};
+
+const detail = (chart, token) => ({
+  ...chart,
+  recorded: steps.has(chart.rtNumber) ? [{ label: 'Mould appointment', value: '2 Jan 2030, 10:00' }] : [],
+  availableActions: chart.stage.code === 'RT_CHART_ISSUED' && profileFor(token) === PROFILE ? [GIVE_DATES] : [],
+  history: [
+    {
+      action: 'ISSUE_CHART',
+      fromStage: null,
+      fromStageLabel: null,
+      toStage: 'RT_CHART_ISSUED',
+      toStageLabel: 'RT chart issued',
+      actorName: chart.issuedBy,
+      actorRoles: ['CONSULTANT'],
+      reason: null,
+      summary: null,
+      occurredAt: chart.createdAt,
+    },
+    ...(steps.has(chart.rtNumber)
+      ? [
+          {
+            action: 'GIVE_SIMULATION_DATES',
+            fromStage: 'RT_CHART_ISSUED',
+            fromStageLabel: 'RT chart issued',
+            toStage: 'SIMULATION_DATES_GIVEN',
+            toStageLabel: 'Dates given',
+            actorName: 'Synthetic Consultant',
+            actorRoles: ['RADIOGRAPHER'],
+            reason: null,
+            summary: steps.get(chart.rtNumber),
+            occurredAt: minutesAgo(0),
+          },
+        ]
+      : []),
+  ],
+});
 
 const RT_PATTERN = /^[A-Z0-9][A-Z0-9/._-]{0,39}$/;
 
@@ -200,22 +276,42 @@ const server = createServer(async (request, response) => {
 
       if (!chart) return refuse(response, 404, 'CHART_NOT_FOUND', `No chart has RT number ${byNumber[1]}.`);
 
-      return send(response, 200, {
-        ...chart,
-        history: [
-          {
-            action: 'ISSUE_CHART',
-            fromStage: null,
-            fromStageLabel: null,
-            toStage: chart.stage.code,
-            toStageLabel: chart.stage.label,
-            actorName: chart.issuedBy,
-            actorRoles: ['CONSULTANT'],
-            reason: null,
-            occurredAt: chart.createdAt,
-          },
-        ],
-      });
+      return send(response, 200, detail(chart, staffToken));
+    }
+
+    const step = route.pathname.match(/^\/api\/v1\/charts\/by-number\/(.+)\/actions\/([A-Z_]+)$/);
+
+    if (method === 'POST' && step) {
+      const chart = charts.get(decodeURIComponent(step[1]).toUpperCase());
+      const body = await readJson(request);
+
+      if (!chart) return refuse(response, 404, 'CHART_NOT_FOUND', `No chart has RT number ${step[1]}.`);
+      if (profileFor(staffToken) !== PROFILE) {
+        return refuse(response, 403, 'ROLE_NOT_ALLOWED', 'Only a radiographer can do this step.');
+      }
+      if (!request.headers['idempotency-key']) {
+        return refuse(response, 400, 'IDEMPOTENCY_KEY_REQUIRED', 'Send an Idempotency-Key header.');
+      }
+      if (chart.rtNumber === 'CHANGED-1' || body.expectedVersion !== chart.version) {
+        return refuse(response, 409, 'CHART_CHANGED', 'The chart changed since you opened it.');
+      }
+      if (step[2] !== 'GIVE_SIMULATION_DATES' || chart.stage.code !== 'RT_CHART_ISSUED') {
+        return refuse(response, 409, 'ACTION_NOT_AVAILABLE', 'This step is not available now.');
+      }
+
+      const values = body.values ?? {};
+
+      if (!values.mouldDate) {
+        return refuse(response, 400, 'VALIDATION_FAILED', 'Some fields need attention.', [
+          { field: 'mouldDate', message: 'Enter mould date.' },
+        ]);
+      }
+
+      Object.assign(chart, STAGES.SIMULATION_DATES_GIVEN, { version: chart.version + 1, minutesInStage: 0 });
+      chart.stageSince = minutesAgo(0);
+      steps.set(chart.rtNumber, `Mould booked for ${values.mouldDate} ${values.mouldTime}.`);
+
+      return send(response, 200, detail(chart, staffToken));
     }
 
     if (method === 'POST' && route.pathname === '/api/v1/charts') {
@@ -246,6 +342,7 @@ const server = createServer(async (request, response) => {
         contourSetName: body.contourSetName ?? null,
         scanReference: body.scanReference ?? null,
         minutesInStage: 0,
+        stageCode: 'RT_CHART_ISSUED',
       });
 
       charts.set(rtNumber, chart);

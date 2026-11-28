@@ -3,7 +3,9 @@ import Link from 'next/link';
 import type { ChartDetail } from '@oncotrack/contracts';
 
 import { formatDateTime, formatDuration } from '@/utils/format';
+import { ROLE_LABELS } from '@/utils/labels';
 
+import ActionForm from './ActionForm';
 import PriorityBadge from './PriorityBadge';
 
 const ACTION_LABELS: Record<string, string> = {
@@ -33,9 +35,45 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         <h1 className="font-mono text-2xl font-semibold">{chart.rtNumber}</h1>
         <p className="text-zinc-600 dark:text-zinc-400">
           {chart.stage.label} for {formatDuration(chart.minutesInStage)}
+          {chart.phase && ` · ${chart.phase}`}
           {chart.status !== 'OPEN' && ` · ${chart.status === 'CLOSED' ? 'closed' : 'discontinued'}`}
         </p>
       </div>
+
+      <section aria-labelledby="next" className="flex flex-col gap-3">
+        <h2 id="next" className="text-lg font-medium">
+          What happens next
+        </h2>
+        {chart.waitingFor ? (
+          <p>
+            Waiting for {chart.waitingFor}
+            {chart.ownerRole && ` (${ROLE_LABELS[chart.ownerRole]})`}.
+          </p>
+        ) : (
+          <p>Nothing more to do: tracking ends here.</p>
+        )}
+        {chart.availableActions.map(action => (
+          <ActionForm key={action.action} rtNumber={chart.rtNumber} version={chart.version} action={action} />
+        ))}
+        {chart.availableActions.length === 0 && chart.ownerRole && (
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">This step is not yours to take.</p>
+        )}
+      </section>
+
+      {chart.recorded.length > 0 && (
+        <section aria-labelledby="recorded" className="flex flex-col gap-3">
+          <h2 id="recorded" className="text-lg font-medium">
+            Recorded so far
+          </h2>
+          <dl className="grid gap-4 sm:grid-cols-2">
+            {chart.recorded.map(fact => (
+              <Fact key={fact.label} label={fact.label}>
+                {fact.value}
+              </Fact>
+            ))}
+          </dl>
+        </section>
+      )}
 
       <section aria-labelledby="details" className="flex flex-col gap-3">
         <h2 id="details" className="text-lg font-medium">
@@ -83,8 +121,11 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
                 <td className="py-2 pr-4">{formatDateTime(entry.occurredAt)}</td>
                 <td className="py-2 pr-4">
                   {actionLabel(entry.action)}
+                  {entry.summary && (
+                    <span className="block text-sm text-zinc-600 dark:text-zinc-400">{entry.summary}</span>
+                  )}
                   {entry.reason && (
-                    <span className="block text-sm text-zinc-600 dark:text-zinc-400">{entry.reason}</span>
+                    <span className="block text-sm text-zinc-600 dark:text-zinc-400">Reason: {entry.reason}</span>
                   )}
                 </td>
                 <td className="py-2 pr-4">

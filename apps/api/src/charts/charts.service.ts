@@ -11,6 +11,7 @@ import type { Actor } from '../auth/actor.js';
 import { DatabaseService, type Queryable } from '../database/database.service.js';
 import { CommandService } from '../transactions/command.service.js';
 import { DomainError } from '../transactions/domain-error.js';
+import { STAGE_INFO } from './actions/stage-info.js';
 import { normaliseRtNumber, parseIssueChart } from './issue-chart.parse.js';
 
 /** Assumed until D-02 (who registers charts) is answered: the consultant issues the chart. */
@@ -61,6 +62,9 @@ function toSummary(row: ChartRow): ChartSummary {
     planId: row.plan_id,
     contourSetName: row.contour_set_name,
     scanReference: row.scan_reference,
+    phase: STAGE_INFO[row.stage_code]?.phase ?? null,
+    waitingFor: STAGE_INFO[row.stage_code]?.waiting ?? null,
+    ownerRole: STAGE_INFO[row.stage_code]?.owner ?? null,
     issuedBy: row.issued_by,
     createdAt: iso(row.created_at),
   };
@@ -211,16 +215,18 @@ export class ChartsService {
     return { items: rows.rows.map(toSummary), total: Number(total.rows[0]?.count ?? 0) };
   }
 
-  async findByNumber(rtNumber: string): Promise<ChartDetail> {
+  /** A chart with its history. `ChartActionsService.view` adds what the signed-in person can do next. */
+  async readDetail(
+    db: Queryable,
+    rtNumber: string,
+  ): Promise<Omit<ChartDetail, 'recorded' | 'availableActions'>> {
     const number = normaliseRtNumber(rtNumber);
-    const found = await this.database.query<ChartRow>(
-      `${CHART_SELECT} WHERE c.display_number = $1`,
-      [number],
-    );
+    const found = await db.query<ChartRow>(`${CHART_SELECT} WHERE c.display_number = $1`, [number]);
     const row = found.rows[0];
     if (!row) throw new DomainError(404, 'CHART_NOT_FOUND', `No chart has RT number ${number}.`);
-    const history = await this.database.query<{
+    const history = await db.query<{
       action: string;
+      summary: string | null;
       from_stage: string | null;
       from_label: string | null;
       to_stage: string;
@@ -230,7 +236,7 @@ export class ChartsService {
       reason: string | null;
       occurred_at: Date | string;
     }>(
-      `SELECT h.action, h.from_stage, fs.label AS from_label, h.to_stage, ts.label AS to_label,
+      `SELECT h.action, h.summary, h.from_stage, fs.label AS from_label, h.to_stage, ts.label AS to_label,
               u.full_name AS actor_name, h.actor_roles, h.reason, h.occurred_at
          FROM chart_stage_history h
          JOIN staff_users u ON u.id = h.actor_id
@@ -241,6 +247,7 @@ export class ChartsService {
     );
     const entries: ChartHistoryEntry[] = history.rows.map((entry) => ({
       action: entry.action,
+      summary: entry.summary,
       fromStage: entry.from_stage,
       fromStageLabel: entry.from_label,
       toStage: entry.to_stage,
