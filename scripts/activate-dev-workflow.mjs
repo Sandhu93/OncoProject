@@ -1,12 +1,14 @@
-// Seeds the non-clinical DRAFT development workflow and approves it, so charts can be issued while you
-// try the app on your own computer. It is NOT the department's workflow: the real one needs the
-// consultant's approval (D-01). Refuses unless the database is on this computer and named *_dev.
+// Seeds the PROPOSED RT workflow (14 stages, as in docs/product/rt-workflow-proposal.md and the prototype)
+// and approves it, so charts can be issued while you try the app on your own computer. It is NOT yet the
+// department's workflow: that needs the consultant's confirmation (D-01). Refuses unless the database is on this computer and named *_dev.
 //   npm run workflow:activate-dev
 // Needs a consultant account to record as the approver (run npm run staff:create-test first).
 import { readFile } from 'node:fs/promises';
 import { createPool } from './database.mjs';
 
-const WORKFLOW_ID = '00000000-0000-4000-8000-000000000001';
+const WORKFLOW_ID = '00000000-0000-4000-8000-000000000002';
+// The earlier 3-stage placeholder, retired here if an older run of this script activated it.
+const PLACEHOLDER_ID = '00000000-0000-4000-8000-000000000001';
 
 function fail(message) {
   console.error(message);
@@ -47,9 +49,16 @@ try {
   } else {
     if (existing.rowCount === 0) {
       await client.query(
-        await readFile(new URL('../database/seeds/development.sql', import.meta.url), 'utf8'),
+        await readFile(
+          new URL('../database/seeds/rt-workflow-proposed.sql', import.meta.url),
+          'utf8',
+        ),
       );
     }
+    await client.query(
+      "UPDATE workflow_versions SET status = 'RETIRED' WHERE id = $1 AND status = 'ACTIVE'",
+      [PLACEHOLDER_ID],
+    );
     const approver = await client.query(
       `SELECT u.id FROM staff_users u JOIN staff_roles r ON r.staff_id = u.id AND r.role_code = 'CONSULTANT'
         WHERE u.is_active ORDER BY (u.username = 'test.consultant') DESC, u.created_at LIMIT 1`,
@@ -70,8 +79,8 @@ try {
     );
     await client.query('COMMIT');
     console.log(
-      'Development workflow activated (Registered -> Task assigned -> Review pending). ' +
-        'This is a stand-in for trying the app, not the department workflow.',
+      'Proposed RT workflow activated (14 stages, from RT chart issued to Treatment completed). ' +
+        'It is the proposal awaiting the consultant, not yet the department workflow.',
     );
   }
 } catch (error) {

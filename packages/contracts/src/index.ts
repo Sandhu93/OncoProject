@@ -148,7 +148,9 @@ export interface ChartSummary {
 export interface ChartHistoryEntry {
   action: string;
   fromStage: string | null;
+  fromStageLabel: string | null;
   toStage: string;
+  toStageLabel: string;
   actorName: string;
   actorRoles: readonly string[];
   reason: string | null;

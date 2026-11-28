@@ -740,5 +740,116 @@ export function registerSchemaTests(name, createDatabase) {
         }
       });
     });
+    it('DB-030 the proposed RT workflow matches the prototype: 14 stages, 16 transitions, owners and checks', async () => {
+      await fixture(async (client, { staff }) => {
+        const seed = await readFile(
+          new URL('../../database/seeds/rt-workflow-proposed.sql', import.meta.url),
+          'utf8',
+        );
+        await client.query(seed);
+        await client.query(seed);
+        const id = '00000000-0000-4000-8000-000000000002';
+        const stages = (
+          await client.query(
+            'SELECT code, is_initial, is_terminal, requires_weekly_update, weekly_update_roles FROM workflow_stages WHERE workflow_id = $1 ORDER BY display_order',
+            [id],
+          )
+        ).rows;
+        assert.deepEqual(
+          stages.map((row) => row.code),
+          [
+            'RT_CHART_ISSUED',
+            'SIMULATION_DATES_GIVEN',
+            'MOULD_DONE',
+            'CT_SIM_DONE',
+            'CONTOURING',
+            'SENIOR_VERIFICATION',
+            'CONSULTANT_CONTOUR_APPROVAL',
+            'PHYSICS_PLANNING',
+            'PLAN_APPROVAL',
+            'PLAN_APPROVED',
+            'PLAN_ON_LINAC',
+            'PATIENT_INFORMED',
+            'TREATMENT_IN_PROGRESS',
+            'TREATMENT_COMPLETED',
+          ],
+        );
+        assert.deepEqual(
+          stages.filter((row) => row.is_initial).map((row) => row.code),
+          ['RT_CHART_ISSUED'],
+        );
+        assert.deepEqual(
+          stages.filter((row) => row.is_terminal).map((row) => row.code),
+          ['TREATMENT_COMPLETED'],
+        );
+        assert.deepEqual(
+          stages
+            .filter((row) => row.requires_weekly_update)
+            .map((row) => [row.code, row.weekly_update_roles]),
+          [['TREATMENT_IN_PROGRESS', ['JUNIOR_RESIDENT', 'RADIOGRAPHER']]],
+        );
+
+        const moves = (
+          await client.query(
+            'SELECT from_stage, action, to_stage, role_code, requires_assignment, requires_reason, prerequisites FROM workflow_transitions WHERE workflow_id = $1',
+            [id],
+          )
+        ).rows;
+        assert.equal(moves.length, 16);
+        const owner = (from) =>
+          moves.filter((move) => move.from_stage === from).map((move) => move.role_code);
+        assert.deepEqual(owner('RT_CHART_ISSUED'), ['RADIOGRAPHER']);
+        assert.deepEqual(owner('CT_SIM_DONE'), ['CONSULTANT']);
+        assert.deepEqual(owner('CONTOURING'), ['JUNIOR_RESIDENT']);
+        assert.deepEqual(owner('SENIOR_VERIFICATION').sort(), [
+          'SENIOR_RESIDENT',
+          'SENIOR_RESIDENT',
+        ]);
+        assert.deepEqual(owner('PHYSICS_PLANNING'), ['PHYSICIST']);
+        assert.deepEqual(owner('PLAN_APPROVED'), ['PHYSICIST']);
+        assert.deepEqual(owner('PLAN_ON_LINAC'), ['RADIOGRAPHER']);
+        assert.deepEqual(owner('PATIENT_INFORMED'), ['JUNIOR_RESIDENT']);
+        assert.deepEqual(owner('TREATMENT_COMPLETED'), []);
+        assert.deepEqual(
+          moves
+            .filter((move) => move.requires_reason)
+            .map((move) => `${move.from_stage}>${move.to_stage}`)
+            .sort(),
+          [
+            'CONSULTANT_CONTOUR_APPROVAL>CONTOURING',
+            'PLAN_APPROVAL>PHYSICS_PLANNING',
+            'SENIOR_VERIFICATION>CONTOURING',
+          ],
+        );
+        assert.deepEqual(
+          moves.filter((move) => move.requires_assignment).map((move) => move.action),
+          ['SUBMIT_CONTOURING'],
+        );
+        assert.deepEqual(moves.find((move) => move.action === 'INFORM_PATIENT').prerequisites, [
+          'CONTOURING_APPROVED',
+          'PLAN_APPROVED',
+          'LINAC_SLOT_RESERVED',
+        ]);
+
+        // Still a draft until the consultant approves it: no chart can use it yet.
+        await client.query('SAVEPOINT draft_check');
+        await assert.rejects(
+          client.query(
+            "INSERT INTO rt_charts(display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($2, $3, 'RT_CHART_ISSUED', $1, $1)",
+            [staff, randomUUID(), id],
+          ),
+          { code: '55000' },
+        );
+        await client.query('ROLLBACK TO SAVEPOINT draft_check');
+        await client.query(
+          "UPDATE workflow_versions SET status = 'ACTIVE', approved_by = $2, approved_at = now() WHERE id = $1",
+          [id, staff],
+        );
+        await client.query(
+          "INSERT INTO rt_charts(display_number, workflow_id, current_stage, consultant_id, created_by) VALUES ($2, $3, 'RT_CHART_ISSUED', $1, $1)",
+          [staff, randomUUID(), id],
+        );
+      });
+    });
   });
 }

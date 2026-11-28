@@ -53,6 +53,8 @@ test.describe('WEB-040 charts with the real API', () => {
     await expect(page.getByRole('heading', { name: rtNumber, level: 1 })).toBeVisible();
     await expect(page.getByText('Chart issued').first()).toBeVisible();
     await expect(page.getByText('CT-1')).toBeVisible();
+    await expect(page.getByRole('row', { name: /Chart issued/ })).toContainText('RT chart issued');
+    await expect(page.getByText('RT chart issued for')).toBeVisible();
     await expect(page.getByRole('row', { name: /Chart issued/ })).toContainText('Real Test Consultant');
 
     await page.goto(`/charts?q=${encodeURIComponent(rtNumber)}`);

@@ -4,6 +4,8 @@ Status: **PROPOSED, NOT APPROVED.** Drafted 24 October 2026 from the consultant'
 
 Every row below is marked either **Stated** (the consultant said this) or **Assumed** (an engineering inference needed to make the workflow complete). Assumptions are the questions that matter most.
 
+The tables below are loaded, unchanged, by `database/seeds/rt-workflow-proposed.sql` (workflow `RT_PROPOSED`, still a DRAFT until approved) and checked by test DB-030, so the code cannot drift from this page or from the prototype.
+
 ## What the consultant described
 
 1. The doctor decides to give radiation, writes the prescription on the radiation (RT) chart and the patient is given a unique RT number.

@@ -271,7 +271,9 @@ components:
                 properties:
                   action: { type: string }
                   fromStage: { type: [string, 'null'] }
+                  fromStageLabel: { type: [string, 'null'] }
                   toStage: { type: string }
+                  toStageLabel: { type: string }
                   actorName: { type: string }
                   actorRoles: { type: array, items: { type: string } }
                   reason: { type: [string, 'null'] }

@@ -206,7 +206,9 @@ const server = createServer(async (request, response) => {
           {
             action: 'ISSUE_CHART',
             fromStage: null,
-            toStage: chart.stage.label,
+            fromStageLabel: null,
+            toStage: chart.stage.code,
+            toStageLabel: chart.stage.label,
             actorName: chart.issuedBy,
             actorRoles: ['CONSULTANT'],
             reason: null,

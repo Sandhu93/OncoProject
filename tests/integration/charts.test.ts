@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -322,5 +323,46 @@ describe('CHART-002 listing and finding charts', () => {
     const missing = await get('/by-number/RT-999', resident.token);
     expect(missing.status).toBe(404);
     expect(missing.body.code).toBe('CHART_NOT_FOUND');
+  });
+});
+
+describe('CHART-003 issuing a chart on the proposed RT workflow', () => {
+  let s: Awaited<ReturnType<typeof startApp>>;
+  beforeAll(async () => {
+    s = await startApp();
+  });
+  afterAll(() => s.close());
+
+  it('starts the chart at "RT chart issued", the first of the 14 stages in the prototype', async () => {
+    const consultant = await s.signIn(['CONSULTANT']);
+    await s.test.db.exec(
+      await readFile(
+        new URL('../../database/seeds/rt-workflow-proposed.sql', import.meta.url),
+        'utf8',
+      ),
+    );
+    await s.test.db.query(
+      "UPDATE workflow_versions SET status = 'ACTIVE', approved_by = $1, approved_at = now() WHERE code = 'RT_PROPOSED'",
+      [consultant.staff.id],
+    );
+
+    const response = await issue(s, consultant.token, {
+      rtNumber: 'RT-PROTO-1',
+      plannedSessions: 25,
+    }).expect(201);
+    expect(response.body.stage).toEqual({ code: 'RT_CHART_ISSUED', label: 'RT chart issued' });
+
+    const detail = await s
+      .http()
+      .get('/api/v1/charts/by-number/RT-PROTO-1')
+      .set('Authorization', `Bearer ${consultant.token}`)
+      .expect(200);
+    expect(detail.body.history).toHaveLength(1);
+    expect(detail.body.history[0]).toMatchObject({
+      action: 'ISSUE_CHART',
+      fromStage: null,
+      toStage: 'RT_CHART_ISSUED',
+      toStageLabel: 'RT chart issued',
+    });
   });
 });

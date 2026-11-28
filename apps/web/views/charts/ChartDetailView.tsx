@@ -88,7 +88,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
                   )}
                 </td>
                 <td className="py-2 pr-4">
-                  {entry.fromStage ? `${entry.fromStage} → ${entry.toStage}` : entry.toStage}
+                  {entry.fromStageLabel ? `${entry.fromStageLabel} → ${entry.toStageLabel}` : entry.toStageLabel}
                 </td>
                 <td className="py-2">{entry.actorName}</td>
               </tr>

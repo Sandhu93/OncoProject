@@ -222,21 +222,29 @@ export class ChartsService {
     const history = await this.database.query<{
       action: string;
       from_stage: string | null;
+      from_label: string | null;
       to_stage: string;
+      to_label: string;
       actor_name: string;
       actor_roles: string[];
       reason: string | null;
       occurred_at: Date | string;
     }>(
-      `SELECT h.action, h.from_stage, h.to_stage, u.full_name AS actor_name, h.actor_roles, h.reason, h.occurred_at
-         FROM chart_stage_history h JOIN staff_users u ON u.id = h.actor_id
+      `SELECT h.action, h.from_stage, fs.label AS from_label, h.to_stage, ts.label AS to_label,
+              u.full_name AS actor_name, h.actor_roles, h.reason, h.occurred_at
+         FROM chart_stage_history h
+         JOIN staff_users u ON u.id = h.actor_id
+         JOIN workflow_stages ts ON ts.workflow_id = h.workflow_id AND ts.code = h.to_stage
+         LEFT JOIN workflow_stages fs ON fs.workflow_id = h.workflow_id AND fs.code = h.from_stage
         WHERE h.chart_id = $1 ORDER BY h.chart_version ASC`,
       [row.id],
     );
     const entries: ChartHistoryEntry[] = history.rows.map((entry) => ({
       action: entry.action,
       fromStage: entry.from_stage,
+      fromStageLabel: entry.from_label,
       toStage: entry.to_stage,
+      toStageLabel: entry.to_label,
       actorName: entry.actor_name,
       actorRoles: entry.actor_roles,
       reason: entry.reason,

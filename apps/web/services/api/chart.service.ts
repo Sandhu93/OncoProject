@@ -36,7 +36,9 @@ const ChartDetailSchema = ChartSummarySchema.extend({
     z.object({
       action: z.string(),
       fromStage: z.string().nullable(),
+      fromStageLabel: z.string().nullable(),
       toStage: z.string(),
+      toStageLabel: z.string(),
       actorName: z.string(),
       actorRoles: z.array(z.string()),
       reason: z.string().nullable(),

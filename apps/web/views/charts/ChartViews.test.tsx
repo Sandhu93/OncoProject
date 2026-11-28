@@ -105,7 +105,9 @@ describe('ChartDetailView', () => {
       {
         action: 'ISSUE_CHART',
         fromStage: null,
-        toStage: 'Contouring',
+        fromStageLabel: null,
+        toStage: 'CONTOURING',
+        toStageLabel: 'Contouring',
         actorName: 'Synthetic Consultant',
         actorRoles: ['CONSULTANT'],
         reason: null,

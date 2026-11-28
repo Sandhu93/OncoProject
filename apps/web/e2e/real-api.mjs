@@ -75,25 +75,19 @@ console.log(`Real API on in-memory PostgreSQL listening on http://127.0.0.1:${RE
  * A small control port for the browser tests, because a workflow can only be approved by a person in the real
  * system and the tests have no such screen yet.
  *   GET  /workflow           -> { active }
- *   POST /activate-workflow  -> approves a synthetic two-stage workflow as real.consultant
+ *   POST /activate-workflow  -> approves the proposed 14-stage RT workflow as real.consultant
  */
 const hasActiveWorkflow = async () =>
   (await db.query("SELECT 1 FROM workflow_versions WHERE status = 'ACTIVE'")).rows.length > 0;
 
 const activateWorkflow = async () => {
   const approver = (await db.query("SELECT id FROM staff_users WHERE username = 'real.consultant'")).rows[0].id;
-  const { rows } = await db.query(
-    "INSERT INTO workflow_versions(code, version, label) VALUES ('e2e-workflow', 1, 'Synthetic e2e workflow') RETURNING id",
-  );
-  const id = rows[0].id;
 
+  // The same proposed 14-stage workflow the development script uses.
+  await db.exec(await readFile(new URL('../../../database/seeds/rt-workflow-proposed.sql', import.meta.url), 'utf8'));
   await db.query(
-    "INSERT INTO workflow_stages(workflow_id, code, label, display_order, is_initial) VALUES ($1, 'ISSUED', 'Chart issued', 0, true), ($1, 'NEXT', 'Next step', 1, false)",
-    [id],
-  );
-  await db.query(
-    "UPDATE workflow_versions SET status = 'ACTIVE', approved_by = $2, approved_at = now() WHERE id = $1",
-    [id, approver],
+    "UPDATE workflow_versions SET status = 'ACTIVE', approved_by = $1, approved_at = now() WHERE code = 'RT_PROPOSED'",
+    [approver],
   );
 };
 
