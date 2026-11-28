@@ -411,6 +411,63 @@ test.describe('WEB-070 the inbox', () => {
   });
 });
 
+test.describe('WEB-092 changing the workflow', () => {
+  // These share the one draft the stand-in API holds.
+  test.describe.configure({ mode: 'serial' });
+
+  test('someone without the permission is told so', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!, 'resident-token');
+    await page.goto('/workflow/edit');
+    await expect(page.getByText('You do not have permission to change the workflow')).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Change the workflow' })).toHaveCount(0);
+  });
+
+  test('prepares a draft, sees what will change, then approves it', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/workflow');
+    await page.getByRole('link', { name: 'Change the workflow' }).click();
+
+    await expect(page.getByRole('heading', { name: 'Change the workflow', level: 1 })).toBeVisible();
+    await page.getByRole('button', { name: 'Start a draft' }).click();
+
+    const form = page.getByRole('form', { name: 'Edit the draft' });
+
+    await expect(form).toBeVisible();
+    await expect(page.getByText('Nothing yet. The draft is the same as the workflow in use.')).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Approve and use for new charts' })).toBeDisabled();
+
+    // A bad entry is refused with a message beside it.
+    await form.getByRole('textbox', { name: 'Stage 2' }).fill('');
+    await form.getByRole('button', { name: 'Save changes to the draft' }).click();
+    await expect(form.getByText('Enter a name up to 80 characters.')).toBeVisible();
+
+    await form.getByRole('textbox', { name: 'Stage 2' }).fill('Appointments booked');
+    await form
+      .getByRole('checkbox', { name: 'Senior resident may Give mould and CT Sim dates at RT chart issued' })
+      .check();
+    await form.getByRole('button', { name: 'Save changes to the draft' }).click();
+
+    const changes = page.getByRole('region', { name: 'What will change' });
+
+    await expect(changes).toContainText('"Dates given" is now called "Appointments booked"');
+    await expect(changes).toContainText('can be done by the senior resident and radiographer');
+
+    await page.getByRole('button', { name: 'Approve and use for new charts' }).click();
+    await expect(page).toHaveURL(/\/workflow$/);
+    await expect(page.getByRole('heading', { name: 'Workflow', level: 1 })).toBeVisible();
+  });
+
+  test('a draft can be thrown away', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/workflow/edit');
+    await page.getByRole('button', { name: 'Start a draft' }).click();
+    await expect(page.getByRole('form', { name: 'Edit the draft' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Discard the draft' }).click();
+    await expect(page.getByRole('button', { name: 'Start a draft' })).toBeVisible();
+  });
+});
+
 test.describe('WEB-090 staff, workflow and audit', () => {
   test('the nav shows Staff and Audit only to those who hold them', async ({ context, baseURL, page }) => {
     await signIn(context, baseURL!);

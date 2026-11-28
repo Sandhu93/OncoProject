@@ -7,6 +7,8 @@ import {
   STAFF_CAPABILITIES,
   type StaffMember,
   type UpdateStaffRequest,
+  type UpdateWorkflowDraftRequest,
+  type WorkflowDraft,
   type WorkflowView,
 } from '@oncotrack/contracts';
 import { z } from 'zod';
@@ -62,6 +64,39 @@ const WorkflowSchema = z.object({
       ),
     })
     .nullable(),
+});
+
+const WorkflowDraftSchema = z.object({
+  code: z.string(),
+  version: z.number(),
+  label: z.string(),
+  status: z.literal('DRAFT'),
+  replacesVersion: z.number(),
+  stages: z.array(
+    z.object({
+      code: z.string(),
+      label: z.string(),
+      phase: z.string().nullable(),
+      position: z.number(),
+      isInitial: z.boolean(),
+      isTerminal: z.boolean(),
+      weeklyUpdateRoles: z.array(z.enum(CLINICAL_ROLES)),
+    }),
+  ),
+  steps: z.array(
+    z.object({
+      from: z.string(),
+      fromLabel: z.string(),
+      action: z.string(),
+      actionLabel: z.string(),
+      roles: z.array(z.enum(CLINICAL_ROLES)),
+      to: z.string(),
+      toLabel: z.string(),
+      requiresReason: z.boolean(),
+      requiresAssignment: z.boolean(),
+    }),
+  ),
+  changes: z.array(z.string()),
 });
 
 const AuditListSchema = z.object({
@@ -145,6 +180,49 @@ export default class AdminService {
         parse: data => WorkflowSchema.parse(data),
       })
     ).workflow;
+
+  /** The draft being prepared, or null. Needs CONFIGURE_WORKFLOW. */
+  static workflowDraft = async (): Promise<WorkflowDraft | null> =>
+    (
+      await handleRequest<{ draft: WorkflowDraft | null }>('/admin/workflow/draft', {
+        requiresAuth: true,
+        parse: data => z.object({ draft: WorkflowDraftSchema.nullable() }).parse(data),
+      })
+    ).draft;
+
+  static startWorkflowDraft = (idempotencyKey: string) =>
+    handleRequest<WorkflowDraft>('/admin/workflow/draft', {
+      requiresAuth: true,
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({}),
+      parse: data => WorkflowDraftSchema.parse(data),
+    });
+
+  static editWorkflowDraft = (payload: UpdateWorkflowDraftRequest, idempotencyKey: string) =>
+    handleRequest<WorkflowDraft>('/admin/workflow/draft/edit', {
+      requiresAuth: true,
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify(payload),
+      parse: data => WorkflowDraftSchema.parse(data),
+    });
+
+  static discardWorkflowDraft = (idempotencyKey: string) =>
+    handleRequest<{ discarded: true }>('/admin/workflow/draft/discard', {
+      requiresAuth: true,
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({}),
+    });
+
+  static approveWorkflowDraft = (idempotencyKey: string) =>
+    handleRequest<{ version: number; changes: string[] }>('/admin/workflow/draft/approve', {
+      requiresAuth: true,
+      method: 'POST',
+      headers: { 'Idempotency-Key': idempotencyKey },
+      body: JSON.stringify({}),
+    });
 
   static audit = (query: AuditQuery) =>
     handleRequest<AuditList>('/admin/audit', {

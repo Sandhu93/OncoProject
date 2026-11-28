@@ -541,6 +541,72 @@ paths:
           description: '{ workflow: WorkflowView | null }'
         '401':
           description: Not signed in
+  /admin/workflow/draft:
+    get:
+      operationId: getWorkflowDraft
+      summary: The draft being prepared, if any
+      description: |
+        Needs CONFIGURE_WORKFLOW. `{ draft: WorkflowDraft | null }`, with `changes` as plain sentences.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: '{ draft }'
+        '403':
+          description: CAPABILITY_REQUIRED
+    post:
+      operationId: startWorkflowDraft
+      summary: Start a draft as a copy of the workflow in use
+      description: Needs CONFIGURE_WORKFLOW and an Idempotency-Key. One draft at a time.
+      security:
+        - bearer: []
+      responses:
+        '201':
+          description: WorkflowDraft
+        '409':
+          description: DRAFT_EXISTS or NO_ACTIVE_WORKFLOW
+  /admin/workflow/draft/edit:
+    post:
+      operationId: editWorkflowDraft
+      summary: Change names, who may do each step and who posts Saturday updates
+      description: |
+        Needs CONFIGURE_WORKFLOW and an Idempotency-Key. Body `{ label?, stages?: [{ code, label?, weeklyUpdateRoles? }],
+        steps?: [{ from, action, roles }] }`. Refused as a whole (400 VALIDATION_FAILED, details by field such as
+        `stages.2.label`) if anything is wrong. Saturday updates can only be set at stages that already have them.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: WorkflowDraft
+        '400':
+          description: VALIDATION_FAILED
+        '404':
+          description: NO_DRAFT
+  /admin/workflow/draft/discard:
+    post:
+      operationId: discardWorkflowDraft
+      summary: Throw the draft away
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: '{ discarded: true }'
+        '404':
+          description: NO_DRAFT
+  /admin/workflow/draft/approve:
+    post:
+      operationId: approveWorkflowDraft
+      summary: Make the draft the workflow in use
+      description: |
+        Retires the version it replaces. Charts already running stay on their version; charts issued afterwards use this
+        one. 409 NO_CHANGES when the draft equals the workflow in use.
+      security:
+        - bearer: []
+      responses:
+        '200':
+          description: '{ version, changes }'
+        '409':
+          description: NO_CHANGES
   /admin/audit:
     get:
       operationId: listAudit

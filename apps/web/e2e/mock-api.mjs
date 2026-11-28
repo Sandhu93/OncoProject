@@ -21,6 +21,7 @@
  * GET  /api/v1/admin/staff                 -> { items }; POST creates (400 VALIDATION_FAILED, 409 USERNAME_TAKEN);
  *     POST /admin/staff/:id changes one (409 CANNOT_SWITCH_OFF_SELF for the signed-in person); POST /admin/staff/:id/password
  * GET  /api/v1/admin/workflow, /api/v1/admin/audit?rt&action&person&from&to&limit&offset
+ * GET/POST /api/v1/admin/workflow/draft, POST .../draft/edit|discard|approve (CONFIGURE_WORKFLOW)
  *     (403 CAPABILITY_REQUIRED for the token "resident-token")
  * GET  /revoked-tokens                    ->  tokens revoked so far, for assertions
  */
@@ -34,7 +35,7 @@ const PROFILE = {
   username: 'synthetic.consultant',
   fullName: 'Synthetic Consultant',
   roles: ['CONSULTANT'],
-  capabilities: ['MANAGE_STAFF', 'VIEW_AUDIT'],
+  capabilities: ['MANAGE_STAFF', 'VIEW_AUDIT', 'CONFIGURE_WORKFLOW'],
 };
 
 const readJson = async request => {
@@ -200,6 +201,78 @@ const WORKFLOW = {
       requiresAssignment: false,
     },
   ],
+};
+
+let workflowDraft = null;
+
+const ROLE_WORDS = {
+  JUNIOR_RESIDENT: 'junior resident',
+  SENIOR_RESIDENT: 'senior resident',
+  CONSULTANT: 'consultant',
+  PHYSICIST: 'physicist',
+  RADIOGRAPHER: 'radiographer',
+};
+const CLINICAL = Object.keys(ROLE_WORDS);
+const words = roles => (roles.length ? roles.map(role => ROLE_WORDS[role]).join(' and ') : 'no one');
+
+const newDraft = () => ({
+  code: WORKFLOW.code,
+  version: 2,
+  label: WORKFLOW.label,
+  status: 'DRAFT',
+  replacesVersion: 1,
+  stages: WORKFLOW.stages.map(({ code, label, phase, position, isInitial, isTerminal, weeklyUpdateRoles }) => ({
+    code,
+    label,
+    phase,
+    position,
+    isInitial,
+    isTerminal,
+    weeklyUpdateRoles: [...weeklyUpdateRoles],
+  })),
+  steps: WORKFLOW.transitions.map(({ from, fromLabel, action, actionLabel, role, to, toLabel }) => ({
+    from,
+    fromLabel,
+    action,
+    actionLabel,
+    roles: [role],
+    to,
+    toLabel,
+    requiresReason: false,
+    requiresAssignment: false,
+  })),
+  changes: [],
+});
+
+const withChanges = draft => {
+  const changes = [];
+
+  if (draft.label !== WORKFLOW.label)
+    changes.push(`The workflow is renamed from "${WORKFLOW.label}" to "${draft.label}".`);
+
+  for (const stage of draft.stages) {
+    const was = WORKFLOW.stages.find(item => item.code === stage.code);
+
+    if (was.label !== stage.label) changes.push(`The stage "${was.label}" is now called "${stage.label}".`);
+
+    if (was.weeklyUpdateRoles.join() !== stage.weeklyUpdateRoles.join()) {
+      changes.push(
+        `Saturday updates at "${stage.label}" will come from the ${words(stage.weeklyUpdateRoles)} (now the ${words(was.weeklyUpdateRoles)}).`,
+      );
+    }
+  }
+
+  for (const step of draft.steps) {
+    const was = WORKFLOW.transitions.find(item => item.from === step.from && item.action === step.action);
+
+    if (was.role !== step.roles.join()) {
+      changes.push(
+        `"${step.actionLabel}" at "${step.fromLabel}" can be done by the ${words(step.roles)} (now the ${words([was.role])}).`,
+      );
+    }
+  }
+
+  return { ...draft, changes };
 };
 
 const auditEntry = (id, action, rtNumber, actorName, minutes, after = null) => ({
@@ -403,6 +476,98 @@ const server = createServer(async (request, response) => {
 
     if (method === 'GET' && route.pathname === '/api/v1/admin/workflow') {
       return send(response, 200, { workflow: WORKFLOW });
+    }
+
+    if (route.pathname.startsWith('/api/v1/admin/workflow/draft')) {
+      if (!need('CONFIGURE_WORKFLOW')) return;
+
+      const step = route.pathname.slice('/api/v1/admin/workflow/draft'.length);
+
+      if (step === '' && method === 'GET') return send(response, 200, { draft: workflowDraft });
+
+      if (step === '' && method === 'POST') {
+        if (workflowDraft) return refuse(response, 409, 'DRAFT_EXISTS', 'A draft is already being prepared.');
+
+        workflowDraft = withChanges(newDraft());
+
+        return send(response, 201, workflowDraft);
+      }
+
+      if (!workflowDraft) return refuse(response, 404, 'NO_DRAFT', 'There is no draft.');
+
+      if (step === '/discard' && method === 'POST') {
+        workflowDraft = null;
+
+        return send(response, 200, { discarded: true });
+      }
+
+      if (step === '/approve' && method === 'POST') {
+        if (workflowDraft.changes.length === 0) {
+          return refuse(response, 409, 'NO_CHANGES', 'The draft is the same as the workflow in use.');
+        }
+
+        // The stand-in only acknowledges the approval and clears the draft. It leaves the workflow it shows as it was,
+        // because the tests run in parallel and share it; that approving changes what is in use is tested against the
+        // real API (WFA-010).
+        const { version, changes } = workflowDraft;
+
+        workflowDraft = null;
+
+        return send(response, 200, { version, changes });
+      }
+
+      if (step === '/edit' && method === 'POST') {
+        const body = await readJson(request);
+        const problems = [];
+        const next = structuredClone(workflowDraft);
+
+        if (body.label !== undefined) {
+          if (!String(body.label).trim())
+            problems.push({ field: 'label', message: 'Enter a name up to 120 characters.' });
+          else next.label = String(body.label).trim();
+        }
+
+        (body.stages ?? []).forEach((item, index) => {
+          const stage = next.stages.find(candidate => candidate.code === item.code);
+
+          if (!stage) return problems.push({ field: `stages.${index}`, message: 'No such stage in this workflow.' });
+
+          if (item.label !== undefined) {
+            if (!String(item.label).trim()) {
+              problems.push({ field: `stages.${index}.label`, message: 'Enter a name up to 80 characters.' });
+            } else stage.label = String(item.label).trim();
+          }
+
+          if (item.weeklyUpdateRoles !== undefined) {
+            if (!item.weeklyUpdateRoles.length) {
+              problems.push({ field: `stages.${index}.weeklyUpdateRoles`, message: 'Choose at least one role.' });
+            } else stage.weeklyUpdateRoles = item.weeklyUpdateRoles.filter(role => CLINICAL.includes(role));
+          }
+        });
+
+        (body.steps ?? []).forEach((item, index) => {
+          const found = next.steps.find(candidate => candidate.from === item.from && candidate.action === item.action);
+
+          if (!found) return problems.push({ field: `steps.${index}`, message: 'No such step in this workflow.' });
+
+          if (!item.roles?.length)
+            problems.push({ field: `steps.${index}.roles`, message: 'Choose at least one role.' });
+          else found.roles = item.roles;
+        });
+
+        if (problems.length) {
+          return refuse(response, 400, 'VALIDATION_FAILED', 'Some fields need attention.', problems);
+        }
+
+        for (const item of next.steps) {
+          item.fromLabel = next.stages.find(stage => stage.code === item.from).label;
+          item.toLabel = next.stages.find(stage => stage.code === item.to).label;
+        }
+
+        workflowDraft = withChanges(next);
+
+        return send(response, 200, workflowDraft);
+      }
     }
 
     if (route.pathname === '/api/v1/admin/audit' && method === 'GET') {

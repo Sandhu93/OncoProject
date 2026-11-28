@@ -470,3 +470,36 @@ export interface AuditList {
   /** Every action name that appears in the trail, for the filter. */
   actions: readonly string[];
 }
+
+/** One step out of a stage, with everyone who may do it. */
+export interface WorkflowStepView {
+  from: string;
+  fromLabel: string;
+  action: string;
+  actionLabel: string;
+  roles: readonly ClinicalRole[];
+  to: string;
+  toLabel: string;
+  requiresReason: boolean;
+  requiresAssignment: boolean;
+}
+
+/** A workflow being prepared. Only names, who may do each step and who posts Saturday updates can change. */
+export interface WorkflowDraft {
+  code: string;
+  version: number;
+  label: string;
+  status: 'DRAFT';
+  /** The version this will replace when approved. */
+  replacesVersion: number;
+  stages: readonly WorkflowStageView[];
+  steps: readonly WorkflowStepView[];
+  /** What differs from the workflow in use, in plain sentences. Empty when nothing has changed. */
+  changes: readonly string[];
+}
+
+export interface UpdateWorkflowDraftRequest {
+  label?: string;
+  stages?: readonly { code: string; label?: string; weeklyUpdateRoles?: readonly ClinicalRole[] }[];
+  steps?: readonly { from: string; action: string; roles: readonly ClinicalRole[] }[];
+}

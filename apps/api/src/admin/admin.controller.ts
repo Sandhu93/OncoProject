@@ -14,6 +14,7 @@ import type { AuditList, StaffMember, WorkflowView } from '@oncotrack/contracts'
 import { CurrentActor, type Actor } from '../auth/actor.js';
 import { AuditService, type AuditQuery } from './audit.service.js';
 import { StaffAdminService } from './staff-admin.service.js';
+import { WorkflowAdminService } from './workflow-admin.service.js';
 import { WorkflowViewService } from './workflow-view.service.js';
 
 interface ResponseLike {
@@ -27,6 +28,7 @@ export class AdminController {
     @Inject(StaffAdminService) private readonly staff: StaffAdminService,
     @Inject(WorkflowViewService) private readonly workflow: WorkflowViewService,
     @Inject(AuditService) private readonly audit: AuditService,
+    @Inject(WorkflowAdminService) private readonly workflowAdmin: WorkflowAdminService,
   ) {}
 
   @Get('staff')
@@ -82,6 +84,48 @@ export class AdminController {
   @Get('workflow')
   activeWorkflow(): Promise<{ workflow: WorkflowView | null }> {
     return this.workflow.active();
+  }
+
+  @Get('workflow/draft')
+  workflowDraft(@CurrentActor() actor: Actor) {
+    return this.workflowAdmin.draft(actor);
+  }
+
+  @Post('workflow/draft')
+  async createWorkflowDraft(
+    @CurrentActor() actor: Actor,
+    @Headers('idempotency-key') key: string | undefined,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ) {
+    return this.reply(response, await this.workflowAdmin.create(actor, key));
+  }
+
+  @Post('workflow/draft/edit')
+  async editWorkflowDraft(
+    @CurrentActor() actor: Actor,
+    @Headers('idempotency-key') key: string | undefined,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ) {
+    return this.reply(response, await this.workflowAdmin.update(actor, key, body));
+  }
+
+  @Post('workflow/draft/discard')
+  async discardWorkflowDraft(
+    @CurrentActor() actor: Actor,
+    @Headers('idempotency-key') key: string | undefined,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ) {
+    return this.reply(response, await this.workflowAdmin.discard(actor, key));
+  }
+
+  @Post('workflow/draft/approve')
+  async approveWorkflowDraft(
+    @CurrentActor() actor: Actor,
+    @Headers('idempotency-key') key: string | undefined,
+    @Res({ passthrough: true }) response: ResponseLike,
+  ) {
+    return this.reply(response, await this.workflowAdmin.approve(actor, key));
   }
 
   @Get('audit')

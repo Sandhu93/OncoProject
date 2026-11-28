@@ -3,6 +3,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { AdminController } from './admin/admin.controller.js';
 import { AuditService } from './admin/audit.service.js';
 import { StaffAdminService } from './admin/staff-admin.service.js';
+import { WorkflowAdminService } from './admin/workflow-admin.service.js';
 import { WorkflowViewService } from './admin/workflow-view.service.js';
 import { AccessGuard } from './auth/access.guard.js';
 import { AuthController } from './auth/auth.controller.js';
@@ -47,6 +48,7 @@ import { CommandService } from './transactions/command.service.js';
     NotificationScheduler,
     StaffAdminService,
     WorkflowViewService,
+    WorkflowAdminService,
     AuditService,
     { provide: APP_GUARD, useClass: AccessGuard },
   ],
