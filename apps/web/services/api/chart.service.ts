@@ -4,6 +4,7 @@ import {
   CHART_PRIORITIES,
   type ChartDetail,
   type ChartList,
+  type ChartQueue,
   type ChartSummary,
   CLINICAL_ROLES,
   type IssueChartRequest,
@@ -84,6 +85,40 @@ const ChartDetailSchema = ChartSummarySchema.extend({
   ),
 });
 
+const QueueItemSchema = z.object({
+  rtNumber: z.string(),
+  priority: z.enum(CHART_PRIORITIES),
+  stage: z.object({ code: z.string(), label: z.string() }),
+  phase: z.string().nullable(),
+  stageNumber: z.number(),
+  stageCount: z.number(),
+  daysInStage: z.number(),
+  stalled: z.boolean(),
+  needsYou: z.boolean(),
+  nextStep: z.string().nullable(),
+  waitingOn: z.string(),
+  assignedTo: z.string().nullable(),
+  assignedToYou: z.boolean(),
+  dateLine: z.string().nullable(),
+  treatmentDay: z.number().nullable(),
+  sessionsDone: z.number().nullable(),
+  plannedSessions: z.number().nullable(),
+  weeklyMissing: z.array(z.enum(CLINICAL_ROLES)),
+});
+
+const ChartQueueSchema = z.object({
+  stallDays: z.number(),
+  weekEnding: z.string(),
+  items: z.array(QueueItemSchema),
+  totals: z.object({
+    open: z.number(),
+    gettingReady: z.number(),
+    stalled: z.number(),
+    inTreatment: z.number(),
+    saturdayUpdatesToCome: z.number(),
+  }),
+});
+
 export interface ChartListQuery {
   q?: string;
   status?: string;
@@ -97,6 +132,13 @@ export default class ChartService {
       requiresAuth: true,
       query: { ...query },
       parse: data => ChartListSchema.parse(data),
+    });
+
+  /** Every open chart, the ones that need the signed-in person first. */
+  static queue = () =>
+    handleRequest<ChartQueue>('/charts/queue', {
+      requiresAuth: true,
+      parse: data => ChartQueueSchema.parse(data),
     });
 
   /** One chart and its history. A 404 throws an `ApiError` with code `CHART_NOT_FOUND`. */

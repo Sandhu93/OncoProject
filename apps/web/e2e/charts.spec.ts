@@ -252,3 +252,48 @@ test.describe('WEB-050 recording a workflow step', () => {
     await expect(page.getByRole('form')).toHaveCount(0);
   });
 });
+
+test.describe('WEB-060 the queue and the overview', () => {
+  test.beforeEach(async ({ context, baseURL }) => {
+    await signIn(context, baseURL!);
+  });
+
+  test('the dashboard leads with what needs the signed-in person and lists everyone else’s', async ({ page }) => {
+    await page.goto('/dashboard');
+
+    await expect(page.getByRole('heading', { name: 'Needs you', level: 2 })).toBeVisible();
+    await expect(page.getByRole('status').first()).toHaveText(/charts need you/);
+
+    const mine = page.getByRole('list', { name: 'Charts that need you' });
+
+    await expect(mine.getByRole('listitem').first()).toContainText('SEED-001');
+    await expect(mine.getByRole('listitem').first()).toContainText('Urgent');
+    await expect(mine.getByRole('link', { name: 'STEP-1' })).toBeVisible();
+    await expect(mine.getByText('Give mould and CT Sim dates').first()).toBeVisible();
+
+    const others = page.getByRole('table', { name: 'Charts waiting on other people' });
+
+    await expect(others.getByRole('row', { name: /SEED-002/ })).toContainText('Junior resident');
+    await expect(others.getByRole('row', { name: /STEP-1/ })).toHaveCount(0);
+  });
+
+  test('the overview shows the tiles and filters the charts', async ({ page }) => {
+    await page.goto('/overview');
+
+    await expect(page.getByRole('heading', { name: 'Overview', level: 1 })).toBeVisible();
+    await expect(page.getByText('Saturday updates to come', { exact: true })).toBeVisible();
+    await expect(page.getByText('Stalled over 3 days')).toBeVisible();
+    await expect(page.getByRole('row', { name: /SEED-002/ })).toBeVisible();
+    await expect(page.getByRole('link', { name: /^All \(\d+\)$/ })).toHaveAttribute('aria-current', 'page');
+
+    await page.getByRole('link', { name: /^Stalled \(0\)$/ }).click();
+
+    await expect(page).toHaveURL(/filter=stalled/);
+    await expect(page.getByRole('status')).toHaveText('No charts match this view.');
+
+    await page.getByRole('link', { name: /^Getting ready/ }).click();
+
+    await expect(page.getByRole('row', { name: /SEED-002/ })).toBeVisible();
+    await expect(page.getByRole('progressbar').first()).toBeVisible();
+  });
+});

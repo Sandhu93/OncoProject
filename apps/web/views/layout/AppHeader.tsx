@@ -2,12 +2,13 @@ import Link from 'next/link';
 
 interface AppHeaderProps {
   /** The page the user is on, so its link can be marked as current. */
-  current: 'dashboard' | 'charts';
+  current: 'dashboard' | 'overview' | 'charts';
   fullName: string;
 }
 
 const NAV = [
   { key: 'dashboard', href: '/dashboard', label: 'Dashboard' },
+  { key: 'overview', href: '/overview', label: 'Overview' },
   { key: 'charts', href: '/charts', label: 'Charts' },
 ] as const;
 

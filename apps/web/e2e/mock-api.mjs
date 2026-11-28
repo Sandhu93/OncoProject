@@ -10,6 +10,7 @@
  * GET  /api/v1/auth/me      Bearer token  ->  200 profile, 401 for an unknown or revoked token
  * GET  /api/v1/charts?q&status&limit&offset   Bearer token -> { items, total }, urgent first then longest wait
  * GET  /api/v1/charts/by-number/:rtNumber     -> chart with history, 404 CHART_NOT_FOUND
+ * GET  /api/v1/charts/queue                   -> every OPEN chart as a queue item; STEP-1/STEP-2 need the signed-in person
  * POST /api/v1/charts   Idempotency-Key       -> 201 chart; 403 for the token "resident-token" (not a consultant);
  *     400 VALIDATION_FAILED, 409 RT_NUMBER_EXISTS, 409 WORKFLOW_NOT_ACTIVE for the RT number "NOWORKFLOW"
  * POST /api/v1/charts/by-number/:rtNumber/actions/GIVE_SIMULATION_DATES   Idempotency-Key { expectedVersion, values }
@@ -268,6 +269,50 @@ const server = createServer(async (request, response) => {
         );
 
       return send(response, 200, { items: matching.slice(offset, offset + limit), total: matching.length });
+    }
+
+    if (method === 'GET' && route.pathname === '/api/v1/charts/queue') {
+      const open = [...charts.values()].filter(chart => chart.status === 'OPEN');
+      const items = open
+        .map(chart => {
+          const needsYou = chart.rtNumber.startsWith('STEP-') || chart.rtNumber === 'SEED-001';
+          const days = Math.floor(chart.minutesInStage / 1440);
+
+          return {
+            rtNumber: chart.rtNumber,
+            priority: chart.priority,
+            stage: chart.stage,
+            phase: chart.phase,
+            stageNumber: chart.stage.code === 'RT_CHART_ISSUED' ? 1 : 5,
+            stageCount: 14,
+            daysInStage: days,
+            stalled: days >= 3,
+            needsYou,
+            nextStep: needsYou ? 'Give mould and CT Sim dates' : null,
+            waitingOn: chart.stage.code === 'RT_CHART_ISSUED' ? 'Radiographer' : 'Junior resident',
+            assignedTo: null,
+            assignedToYou: false,
+            dateLine: chart.stage.code === 'RT_CHART_ISSUED' ? 'Dates not recorded yet' : null,
+            treatmentDay: null,
+            sessionsDone: null,
+            plannedSessions: chart.plannedSessions,
+            weeklyMissing: [],
+          };
+        })
+        .sort((a, b) => Number(b.needsYou) - Number(a.needsYou) || b.daysInStage - a.daysInStage);
+
+      return send(response, 200, {
+        stallDays: 3,
+        weekEnding: '2026-11-28',
+        items,
+        totals: {
+          open: items.length,
+          gettingReady: items.length,
+          stalled: items.filter(item => item.stalled).length,
+          inTreatment: 0,
+          saturdayUpdatesToCome: 0,
+        },
+      });
     }
 
     const byNumber = route.pathname.match(/^\/api\/v1\/charts\/by-number\/(.+)$/);

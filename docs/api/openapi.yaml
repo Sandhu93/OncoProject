@@ -161,6 +161,22 @@ paths:
           description: VALIDATION_FAILED for an unknown status
         '401':
           description: Not signed in
+  /charts/queue:
+    get:
+      operationId: getChartQueue
+      summary: Every open chart, marked with what needs the signed-in person
+      description: >-
+        Charts that need the caller come first (urgent and longest-waiting first, charts in treatment last), then
+        the rest in the same order. A chart needs the caller when one of their roles can take a step on it now.
+      responses:
+        '200':
+          description: The queue and its totals
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ChartQueue'
+        '401':
+          description: Not signed in
   /charts/by-number/{rtNumber}:
     get:
       operationId: getChartByNumber
@@ -276,6 +292,68 @@ components:
         planId: { type: string, maxLength: 60 }
         contourSetName: { type: string, maxLength: 60 }
         scanReference: { type: string, maxLength: 60 }
+    QueueItem:
+      type: object
+      required:
+        [
+          rtNumber,
+          priority,
+          stage,
+          stageNumber,
+          stageCount,
+          daysInStage,
+          stalled,
+          needsYou,
+          waitingOn,
+          assignedToYou,
+          weeklyMissing,
+        ]
+      properties:
+        rtNumber: { type: string }
+        priority: { type: string, enum: [ROUTINE, URGENT] }
+        stage:
+          type: object
+          required: [code, label]
+          properties:
+            code: { type: string }
+            label: { type: string }
+        phase: { type: [string, 'null'] }
+        stageNumber: { type: integer, description: Position of the stage in the workflow, from 1 }
+        stageCount: { type: integer }
+        daysInStage:
+          {
+            type: integer,
+            description: Calendar days (India Standard Time) since the chart moved here,
+          }
+        stalled: { type: boolean, description: Waiting STALL_DAYS or more, outside treatment }
+        needsYou: { type: boolean }
+        nextStep: { type: [string, 'null'], description: What the caller can do, in plain words }
+        waitingOn: { type: string }
+        assignedTo: { type: [string, 'null'] }
+        assignedToYou: { type: boolean }
+        dateLine: { type: [string, 'null'] }
+        treatmentDay: { type: [integer, 'null'] }
+        sessionsDone: { type: [integer, 'null'] }
+        plannedSessions: { type: [integer, 'null'] }
+        weeklyMissing: { type: array, items: { type: string } }
+    ChartQueue:
+      type: object
+      required: [stallDays, weekEnding, items, totals]
+      properties:
+        stallDays: { type: integer }
+        weekEnding: { type: string, format: date }
+        items:
+          type: array
+          items: { $ref: '#/components/schemas/QueueItem' }
+        totals:
+          type: object
+          required: [open, gettingReady, stalled, inTreatment, saturdayUpdatesToCome]
+          properties:
+            open: { type: integer }
+            gettingReady: { type: integer }
+            stalled: { type: integer }
+            inTreatment: { type: integer }
+            saturdayUpdatesToCome: { type: integer }
     ChartSummary:
       type: object
       required:

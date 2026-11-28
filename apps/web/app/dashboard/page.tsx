@@ -4,8 +4,11 @@ import type { Metadata } from 'next';
 
 import { CAPABILITY_LABELS, ROLE_LABELS } from '@/utils/labels';
 
+import ChartService from '@/services/api/chart.service';
 import StaffService from '@/services/api/staff.service';
 
+import { queueSummary } from '@/views/charts/queue';
+import { ElsewhereList, NeedsYouList } from '@/views/charts/QueueViews';
 import AppHeader from '@/views/layout/AppHeader';
 
 export const metadata: Metadata = {
@@ -20,13 +23,32 @@ export const dynamic = 'force-dynamic';
  * from the API, which reads roles and capabilities from its own records: nothing is chosen in the browser.
  */
 export default async function DashboardPage() {
-  const staff = await StaffService.me();
+  const [staff, queue] = await Promise.all([StaffService.me(), ChartService.queue()]);
+  const mine = queue.items.filter(item => item.needsYou);
+  const others = queue.items.filter(item => !item.needsYou);
 
   return (
-    <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
+    <main className="mx-auto flex min-h-screen max-w-4xl flex-col gap-6 p-8">
       <AppHeader current="dashboard" fullName={staff.fullName} />
 
       <h1 className="text-2xl font-semibold">Dashboard</h1>
+
+      <section aria-labelledby="needs-you" className="flex flex-col gap-3">
+        <h2 id="needs-you" className="text-lg font-medium">
+          Needs you
+        </h2>
+        <p role="status">{queueSummary(mine.length, mine.filter(item => item.stalled).length, queue.stallDays)}</p>
+        {mine.length > 0 && <NeedsYouList items={mine} />}
+      </section>
+
+      {others.length > 0 && (
+        <section aria-labelledby="everyone-else" className="flex flex-col gap-3">
+          <h2 id="everyone-else" className="text-lg font-medium">
+            Everyone else&apos;s
+          </h2>
+          <ElsewhereList items={others} />
+        </section>
+      )}
 
       <section aria-labelledby="signed-in" className="flex flex-col gap-2">
         <h2 id="signed-in" className="text-lg font-medium">

@@ -348,3 +348,37 @@ test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, fin
     await expect(page.getByText('Treatment finished', { exact: true }).first()).toBeVisible();
   });
 });
+
+test.describe('WEB-055 the queue follows the workflow', () => {
+  const rtNumber = `WF/${STAMP}/Q`;
+
+  test('a new chart needs the radiographer, not the consultant, and moves on once they act', async ({
+    page,
+    request,
+  }) => {
+    await request.post(`${CONTROL}/activate-workflow`);
+    await logIn(page, 'real.consultant');
+    await page.goto('/charts/new');
+    await page.getByLabel('RT number').fill(rtNumber);
+    await page.getByLabel('Planned sessions').fill('10');
+    await page.getByRole('button', { name: 'Issue chart' }).click();
+    await expect(page).toHaveURL(/\/charts\//);
+
+    // The consultant has nothing to do on it: it sits under everyone else's, waiting on the radiographer.
+    await page.goto('/dashboard');
+    const others = page.getByRole('table', { name: 'Charts waiting on other people' });
+    await expect(others.getByRole('row', { name: new RegExp(rtNumber) })).toContainText('Radiographer');
+    await expect(page.getByRole('list', { name: 'Charts that need you' }).getByText(rtNumber)).toHaveCount(0);
+
+    await logIn(page, 'real.radiographer');
+    const mine = page.getByRole('list', { name: 'Charts that need you' });
+    const row = mine.getByRole('listitem').filter({ hasText: rtNumber });
+    await expect(row).toContainText('Give mould and CT Sim dates');
+    await expect(row).toContainText('Just moved');
+    await expect(row).toContainText('Dates not recorded yet');
+
+    await page.goto('/overview');
+    await expect(page.getByRole('row', { name: new RegExp(rtNumber) })).toContainText('RT chart issued');
+    await expect(page.getByRole('progressbar', { name: 'Stage 1 of 14' }).first()).toBeVisible();
+  });
+});

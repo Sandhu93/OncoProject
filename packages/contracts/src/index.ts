@@ -238,6 +238,54 @@ export interface ChartList {
   total: number;
 }
 
+/** One open chart as it appears in the queue and the all-charts view. */
+export interface QueueItem {
+  rtNumber: string;
+  priority: ChartPriority;
+  stage: { code: string; label: string };
+  phase: string | null;
+  /** Position of the stage in the workflow (1-based) and the number of stages, for a progress bar. */
+  stageNumber: number;
+  stageCount: number;
+  /** Calendar days (India Standard Time) since the chart moved into this stage. */
+  daysInStage: number;
+  /** Waiting longer than the stall threshold, outside treatment. */
+  stalled: boolean;
+  /** The signed-in person can take a step on this chart now. */
+  needsYou: boolean;
+  /** What the signed-in person can do, in plain words ("Record mould done or send back"); null when nothing. */
+  nextStep: string | null;
+  /** Who the chart is waiting for ("Consultant", "Junior resident Dr Rao", "Radiographer (Saturday update)"). */
+  waitingOn: string;
+  /** The junior resident contouring, when the chart is in contouring. */
+  assignedTo: string | null;
+  assignedToYou: boolean;
+  /** The most useful date for this stage ("CT Sim booked 3 Dec 2026, 10:00"); null when there is none. */
+  dateLine: string | null;
+  /** Treatment day, counted from the day treatment started (1 on the first day). */
+  treatmentDay: number | null;
+  sessionsDone: number | null;
+  plannedSessions: number | null;
+  /** Saturday updates still to come this week, by role; empty outside treatment. */
+  weeklyMissing: readonly ClinicalRole[];
+}
+
+export interface ChartQueue {
+  /** Days a chart may wait in a stage before it counts as stalled (outside treatment). */
+  stallDays: number;
+  /** The Saturday this week's updates are dated by. */
+  weekEnding: string;
+  /** Every open chart: the ones that need the signed-in person first, most urgent and longest-waiting first. */
+  items: readonly QueueItem[];
+  totals: {
+    open: number;
+    gettingReady: number;
+    stalled: number;
+    inTreatment: number;
+    saturdayUpdatesToCome: number;
+  };
+}
+
 /** Error body for every refused request. `details` lists the fields that failed validation. */
 export interface ApiErrorBody {
   code: string;

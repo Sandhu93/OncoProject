@@ -13,10 +13,16 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   if (!Number.isInteger(sessionTtlHours) || sessionTtlHours < 1 || sessionTtlHours > 72) {
     throw new Error('SESSION_TTL_HOURS must be an integer between 1 and 72.');
   }
+  // D-07 (when a chart counts as stalled) is still to be confirmed with the consultant; the prototype used 3.
+  const stallDays = Number(env.STALL_DAYS ?? 3);
+  if (!Number.isInteger(stallDays) || stallDays < 1 || stallDays > 60) {
+    throw new Error('STALL_DAYS must be an integer between 1 and 60.');
+  }
   return {
     port,
     host: env.API_HOST ?? '127.0.0.1',
     databaseUrl: env.DATABASE_URL,
     sessionTtlHours,
+    stallDays,
   };
 }
