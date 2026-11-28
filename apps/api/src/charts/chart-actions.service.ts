@@ -278,7 +278,7 @@ export class ChartActionsService {
     context: ActionContext,
     requiresReason: boolean,
   ): Promise<FieldDef[]> {
-    const fields = await this.withStaff(db, definition.fields(context));
+    const fields = await this.withStaff(db, await definition.fields(context));
     if (requiresReason && !fields.some((field) => field.key === 'reason')) {
       fields.unshift({
         key: 'reason',

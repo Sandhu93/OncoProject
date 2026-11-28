@@ -75,3 +75,28 @@ export const chartAtCtSimDone = async (request: APIRequestContext, rtNumber: str
   await step(request, 'real.radiographer', rtNumber, 'RECORD_MOULD_DONE', { mouldDoneOn: istDay() });
   await step(request, 'real.radiographer', rtNumber, 'RECORD_CT_SIM_DONE', { ctDoneOn: istDay() });
 };
+
+/** On to "Physics planning": assigned to Real Junior Anand, submitted, verified and approved. */
+export const chartAtPhysicsPlanning = async (request: APIRequestContext, rtNumber: string) => {
+  await chartAtCtSimDone(request, rtNumber);
+
+  const consultant = await apiAs(request, 'real.consultant');
+  const staff = await consultant.get('/charts/by-number/' + encodeURIComponent(rtNumber));
+  const resident = (
+    staff.availableActions[0].fields.find((field: { key: string }) => field.key === 'resident') as {
+      options: { value: string; label: string }[];
+    }
+  ).options.find(option => option.label === 'Real Junior Anand')!.value;
+
+  await step(request, 'real.consultant', rtNumber, 'ASSIGN_CONTOURING', { resident, contourDue: istDay(3) });
+  await step(request, 'real.junior', rtNumber, 'SUBMIT_CONTOURING', { contourRef: 'C-1' });
+  await step(request, 'real.senior', rtNumber, 'VERIFY_CONTOURING');
+  await step(request, 'real.consultant', rtNumber, 'APPROVE_CONTOURING');
+};
+
+/** On to "Plan approved". */
+export const chartAtPlanApproved = async (request: APIRequestContext, rtNumber: string) => {
+  await chartAtPhysicsPlanning(request, rtNumber);
+  await step(request, 'real.physicist', rtNumber, 'SUBMIT_PLAN', { planId: 'PLAN-1' });
+  await step(request, 'real.consultant', rtNumber, 'APPROVE_PLAN', { approvedBy: 'Consultant' });
+};

@@ -35,7 +35,7 @@ export interface FieldDef extends ActionField {
 
 export interface ActionDefinition {
   label: string;
-  fields(context: ActionContext): FieldDef[];
+  fields(context: ActionContext): FieldDef[] | Promise<FieldDef[]>;
   /** Rules that look at several fields, or at the chart. Return problems; do not throw. */
   validate?(
     values: Record<string, string>,

@@ -10,6 +10,12 @@ import {
   SUBMIT_CONTOURING,
   VERIFY_CONTOURING,
 } from './definitions/contouring.js';
+import {
+  APPROVE_PLAN,
+  RETURN_PLAN,
+  SEND_PLAN_TO_LINAC,
+  SUBMIT_PLAN,
+} from './definitions/planning.js';
 import type { ActionDefinition } from './types.js';
 
 /**
@@ -26,4 +32,8 @@ export const CATALOGUE: Readonly<Record<string, ActionDefinition>> = {
   VERIFY_CONTOURING,
   APPROVE_CONTOURING,
   RETURN_CONTOURING,
+  SUBMIT_PLAN,
+  APPROVE_PLAN,
+  RETURN_PLAN,
+  SEND_PLAN_TO_LINAC,
 };

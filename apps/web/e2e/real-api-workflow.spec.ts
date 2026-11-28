@@ -1,6 +1,6 @@
 import { expect, test } from '@playwright/test';
 
-import { chartAtCtSimDone } from './workflow-api';
+import { chartAtCtSimDone, chartAtPhysicsPlanning, chartAtPlanApproved, istDay } from './workflow-api';
 
 // The workflow, step by step, in a browser against the real API on a real (in-memory) PostgreSQL.
 // Each describe issues its own chart so the tests do not depend on each other's charts.
@@ -170,5 +170,89 @@ test.describe('WEB-052 contouring: assign, submit, verify, approve, send back', 
     await expect(page.getByText('Waiting for the physicist to build and submit the plan')).toBeVisible();
     await expect(page.getByText('Contouring approved', { exact: true })).toBeVisible();
     await expect(page.getByText('Contouring verified by senior resident', { exact: true })).toBeVisible();
+  });
+});
+
+test.describe('WEB-053 planning: plan, approve, send back, send to the LINAC', () => {
+  const rtNumber = `WF/${STAMP}/3`;
+  const open = (page: import('@playwright/test').Page, rt = rtNumber) => page.goto(`/charts/${encodeURIComponent(rt)}`);
+
+  test('the physicist must give a plan ID, then submits the plan', async ({ page, request }) => {
+    await request.post(`${CONTROL}/activate-workflow`);
+    await chartAtPhysicsPlanning(request, rtNumber);
+    await logIn(page, 'real.physicist');
+    await open(page);
+
+    await expect(page.getByText('Waiting for the physicist to build and submit the plan')).toBeVisible();
+    await page.getByRole('button', { name: 'Submit plan for approval' }).click();
+    await expect(page.getByLabel('Plan ID')).toHaveAccessibleDescription(/Enter plan ID\./);
+
+    await page.getByLabel('Plan ID').fill('PLAN-5871');
+    await page.getByLabel('Note for the consultant').fill('Two arcs.');
+    await page.getByRole('button', { name: 'Submit plan for approval' }).click();
+
+    await expect(page.getByText('Waiting for the consultant or treating doctor to approve the plan')).toBeVisible();
+    await expect(
+      page.getByRole('row', { name: /Plan PLAN-5871 submitted for approval\. Note: Two arcs\./ }),
+    ).toBeVisible();
+  });
+
+  test('the consultant sends it back with a reason; the physicist submits again', async ({ page }) => {
+    await logIn(page, 'real.consultant');
+    await open(page);
+    await page.getByLabel('Why is it going back?').fill('Dose to the cord is too high.');
+    await page.getByRole('button', { name: 'Send back' }).click();
+
+    await expect(page.getByText('Waiting for the physicist to build and submit the plan')).toBeVisible();
+    await expect(page.getByText('Plan submitted', { exact: true })).toHaveCount(0);
+
+    await logIn(page, 'real.physicist');
+    await open(page);
+    await page.getByLabel('Plan ID').fill('PLAN-5872');
+    await page.getByRole('button', { name: 'Submit plan for approval' }).click();
+    await expect(page.getByText('Waiting for the consultant or treating doctor to approve the plan')).toBeVisible();
+  });
+
+  test('approved by the treating doctor, then sent to the LINAC with a reserved first slot', async ({ page }) => {
+    await logIn(page, 'real.consultant');
+    await open(page);
+    await page.getByLabel('Approved by').selectOption('Treating doctor');
+    await page.getByRole('button', { name: 'Approve plan' }).click();
+
+    await expect(page.getByText('Waiting for the approved plan to be sent to the LINAC')).toBeVisible();
+    await expect(page.getByRole('definition').filter({ hasText: /by the treating doctor/ })).toBeVisible();
+
+    await logIn(page, 'real.physicist');
+    await open(page);
+    await expect(page.getByLabel('Machine')).toHaveValue('LINAC 1');
+    await expect(page.getByLabel('First treatment time')).toHaveValue('09:00');
+    await page.getByLabel('First treatment date').fill(istDay(20));
+    await page.getByRole('button', { name: 'Send plan to LINAC' }).click();
+
+    await expect(page.getByText('Waiting for the radiographer to inform the patient')).toBeVisible();
+    await expect(page.getByText('First treatment slot', { exact: true })).toBeVisible();
+    await expect(page.getByText(/, LINAC 1$/).first()).toBeVisible();
+  });
+
+  test('a slot another chart already holds is refused on the time field, naming that chart', async ({
+    page,
+    request,
+  }) => {
+    const other = `WF/${STAMP}/3B`;
+
+    await chartAtPlanApproved(request, other);
+    await logIn(page, 'real.physicist');
+    await open(page, other);
+    await page.getByLabel('First treatment date').fill(istDay(20));
+    await page.getByRole('button', { name: 'Send plan to LINAC' }).click();
+
+    await expect(page.getByLabel('First treatment time')).toHaveAccessibleDescription(
+      `LINAC 1 is already booked at that time for ${rtNumber}.`,
+    );
+    await expect(page.getByLabel('First treatment date')).toHaveValue(istDay(20));
+
+    await page.getByLabel('First treatment time').fill('10:00');
+    await page.getByRole('button', { name: 'Send plan to LINAC' }).click();
+    await expect(page.getByText('Waiting for the radiographer to inform the patient')).toBeVisible();
   });
 });
