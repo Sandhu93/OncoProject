@@ -219,7 +219,7 @@ export class ChartsService {
   async readDetail(
     db: Queryable,
     rtNumber: string,
-  ): Promise<Omit<ChartDetail, 'recorded' | 'availableActions'>> {
+  ): Promise<Omit<ChartDetail, 'recorded' | 'availableActions' | 'weekly'>> {
     const number = normaliseRtNumber(rtNumber);
     const found = await db.query<ChartRow>(`${CHART_SELECT} WHERE c.display_number = $1`, [number]);
     const row = found.rows[0];

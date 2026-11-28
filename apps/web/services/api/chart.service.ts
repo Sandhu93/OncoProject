@@ -61,6 +61,12 @@ const AvailableActionSchema = z.object({
 
 const ChartDetailSchema = ChartSummarySchema.extend({
   recorded: z.array(z.object({ label: z.string(), value: z.string() })),
+  weekly: z
+    .object({
+      weekEnding: z.string(),
+      updates: z.array(z.object({ role: z.enum(CLINICAL_ROLES), posted: z.boolean() })),
+    })
+    .nullable(),
   availableActions: z.array(AvailableActionSchema),
   history: z.array(
     z.object({

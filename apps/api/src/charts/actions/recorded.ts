@@ -11,7 +11,10 @@ const when = (data: ChartData, dateKey: string, timeKey: string) =>
     : null;
 
 /** The facts a chart has gathered so far, in the order the work happens. Only facts that exist are shown. */
-const ROWS: readonly (readonly [label: string, read: (data: ChartData) => string | null])[] = [
+const ROWS: readonly (readonly [
+  label: string,
+  read: (data: ChartData, planned: number | null) => string | null,
+])[] = [
   ['Mould appointment', (d) => when(d, 'mouldDate', 'mouldTime')],
   ['CT Sim appointment', (d) => when(d, 'ctDate', 'ctTime')],
   ['Mould done', (d) => day(d, 'mouldDoneOn')],
@@ -47,6 +50,13 @@ const ROWS: readonly (readonly [label: string, read: (data: ChartData) => string
   ['Patient to arrive', (d) => when(d, 'arriveDate', 'arriveTime')],
   ['Treatment started', (d) => day(d, 'startOn')],
   [
+    'Sessions given so far',
+    (d, planned) =>
+      d.startOn && !d.completeOn && d.sessionsDone !== undefined
+        ? `${d.sessionsDone}${planned === null ? '' : ` of ${planned}`}`
+        : null,
+  ],
+  [
     'Treatment finished',
     (d) =>
       d.completeOn
@@ -55,10 +65,10 @@ const ROWS: readonly (readonly [label: string, read: (data: ChartData) => string
   ],
 ];
 
-export function recordedFacts(data: ChartData): RecordedFact[] {
+export function recordedFacts(data: ChartData, planned: number | null = null): RecordedFact[] {
   const facts: RecordedFact[] = [];
   for (const [label, read] of ROWS) {
-    const value = read(data);
+    const value = read(data, planned);
     if (value) facts.push({ label, value });
   }
   return facts;

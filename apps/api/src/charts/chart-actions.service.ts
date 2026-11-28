@@ -1,11 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ActionField, AvailableAction, ChartDetail } from '@oncotrack/contracts';
+import type {
+  ActionField,
+  AvailableAction,
+  ChartDetail,
+  ClinicalRole,
+  WeeklyStatus,
+} from '@oncotrack/contracts';
 import type { Actor } from '../auth/actor.js';
 import { DatabaseService, type Queryable } from '../database/database.service.js';
 import { CommandService } from '../transactions/command.service.js';
 import { DomainError, type FieldProblem } from '../transactions/domain-error.js';
 import { CATALOGUE } from './actions/catalogue.js';
 import { readValues, refuse } from './actions/fields.js';
+import { saturdayOnOrBefore } from './actions/dates.js';
 import { recordedFacts } from './actions/recorded.js';
 import type { ActionContext, ActionDefinition, ChartData, FieldDef } from './actions/types.js';
 import { ChartsService } from './charts.service.js';
@@ -37,6 +44,16 @@ interface TransitionRow {
   role_code: string;
   requires_assignment: boolean;
   requires_reason: boolean;
+  /** A record kept on the chart (a Saturday update) rather than a move to another stage. */
+  keeps_stage?: boolean;
+}
+
+const WEEKLY = 'POST_WEEKLY_UPDATE';
+
+interface WeeklyStage {
+  requires_weekly_update: boolean;
+  weekly_update_roles: string[];
+  is_terminal: boolean;
 }
 
 /** Strips the server-only parts of a field before it is sent to a screen. */
@@ -65,7 +82,13 @@ export class ChartActionsService {
       state.status === 'OPEN'
         ? await this.availableFor(db, actor, state)
         : ([] as AvailableAction[]);
-    return { ...base, recorded: recordedFacts(state.data), availableActions };
+    const weekly = await this.weeklyStatus(db, state);
+    return {
+      ...base,
+      recorded: recordedFacts(state.data, state.planned_sessions),
+      weekly,
+      availableActions,
+    };
   }
 
   async perform(
@@ -108,30 +131,30 @@ export class ChartActionsService {
             'This chart changed while you were working. Reload it to see the latest, then try again.',
           );
         }
-        const transitions = await tx.query<TransitionRow>(
-          `SELECT action, to_stage, role_code, requires_assignment, requires_reason
-             FROM workflow_transitions WHERE workflow_id = $1 AND from_stage = $2 AND action = $3`,
-          [chart.workflow_id, chart.current_stage, action],
-        );
-        if (transitions.rows.length === 0) {
+        const candidates = await this.candidatesFor(tx, chart, action);
+        if (candidates.length === 0) {
           throw new DomainError(
             409,
             'ACTION_NOT_AVAILABLE',
             "This step is not available at the chart's current stage.",
           );
         }
-        const transition = transitions.rows.find((row) =>
-          actor.roles.includes(row.role_code as never),
-        );
+        const transition = candidates.find((row) => actor.roles.includes(row.role_code as never));
         if (!transition) {
-          const who = ROLE_WORDS[transitions.rows[0]!.role_code] ?? 'another role';
-          throw new DomainError(403, 'ROLE_NOT_ALLOWED', `Only a ${who} can do this step.`);
+          const who = [
+            ...new Set(candidates.map((row) => ROLE_WORDS[row.role_code] ?? 'another role')),
+          ];
+          throw new DomainError(
+            403,
+            'ROLE_NOT_ALLOWED',
+            `Only a ${who.join(' or ')} can do this step.`,
+          );
         }
         const definition = CATALOGUE[action];
         if (!definition) {
           throw new DomainError(409, 'ACTION_NOT_AVAILABLE', 'This step cannot be recorded yet.');
         }
-        const context = await this.context(tx, actor, chart);
+        const context = await this.context(tx, actor, chart, transition.role_code);
         if (transition.requires_assignment) {
           const assigned = await tx.query(
             `SELECT 1 FROM assignments WHERE chart_id = $1 AND task_code = 'CONTOURING' AND staff_id = $2 AND ended_at IS NULL`,
@@ -145,7 +168,7 @@ export class ChartActionsService {
             );
           }
         }
-        definition.assertReady?.(context);
+        await definition.assertReady?.(context);
 
         const fields = await this.fieldsFor(tx, definition, context, transition.requires_reason);
         const { values, problems } = readValues(fields, input.values);
@@ -163,22 +186,22 @@ export class ChartActionsService {
         await definition.afterApply?.(values, context);
 
         const columns = definition.columns?.(values) ?? {};
+        const keeps = transition.keeps_stage === true;
+        const params: unknown[] = [chart.id, expectedVersion];
+        const bind = (value: unknown) => `$${params.push(value)}`;
         const sets = [
-          'current_stage = $3',
-          'current_stage_since = now()',
           'version = version + 1',
           'updated_at = now()',
-          'data = $4::jsonb',
+          `data = ${bind(JSON.stringify(data))}::jsonb`,
         ];
-        const params: unknown[] = [
-          chart.id,
-          expectedVersion,
-          transition.to_stage,
-          JSON.stringify(data),
-        ];
+        if (!keeps) {
+          sets.push(`current_stage = ${bind(transition.to_stage)}`, 'current_stage_since = now()');
+          // Reaching a final stage ends tracking: the chart is closed and takes no more steps.
+          const target = await this.stageOf(tx, chart.workflow_id, transition.to_stage);
+          if (target?.is_terminal) sets.push("status = 'CLOSED'");
+        }
         for (const [column, value] of Object.entries(columns)) {
-          params.push(value);
-          sets.push(`${column} = $${params.length}`);
+          sets.push(`${column} = ${bind(value)}`);
         }
         const updated = await tx.query(
           `UPDATE rt_charts SET ${sets.join(', ')} WHERE id = $1 AND version = $2 RETURNING version`,
@@ -211,7 +234,7 @@ export class ChartActionsService {
         );
         await tx.query(
           `INSERT INTO audit_events(chart_id, actor_id, actor_roles, action, entity_type, entity_id, before_values, after_values, request_id)
-           VALUES ($1::uuid, $2::uuid, $3::text[], 'CHART_STAGE_CHANGED', 'RT_CHART', $4::text, $5::jsonb, $6::jsonb, $7::uuid)`,
+           VALUES ($1::uuid, $2::uuid, $3::text[], $8::text, 'RT_CHART', $4::text, $5::jsonb, $6::jsonb, $7::uuid)`,
           [
             chart.id,
             actor.id,
@@ -220,10 +243,11 @@ export class ChartActionsService {
             JSON.stringify({ stage: chart.current_stage, version: expectedVersion }),
             JSON.stringify({ stage: transition.to_stage, version, action }),
             requestId,
+            keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
           ],
         );
         await tx.query(
-          `INSERT INTO outbox_events(chart_id, event_type, payload) VALUES ($1, 'CHART_STAGE_CHANGED', $2::jsonb)`,
+          `INSERT INTO outbox_events(chart_id, event_type, payload) VALUES ($1, $3, $2::jsonb)`,
           [
             chart.id,
             JSON.stringify({
@@ -233,6 +257,7 @@ export class ChartActionsService {
               toStage: transition.to_stage,
               action,
             }),
+            keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
           ],
         );
         return { status: 200, body: await this.view(actor, number, tx) };
@@ -252,12 +277,79 @@ export class ChartActionsService {
     return row;
   }
 
-  private async context(db: Queryable, actor: Actor, chart: ChartState): Promise<ActionContext> {
-    const today = await db.query<{ today: string }>(
+  private async today(db: Queryable): Promise<string> {
+    const found = await db.query<{ today: string }>(
       `SELECT (now() AT TIME ZONE 'Asia/Kolkata')::date::text AS today`,
     );
+    return found.rows[0]!.today;
+  }
+
+  private async stageOf(db: Queryable, workflowId: string, stage: string) {
+    const found = await db.query<WeeklyStage>(
+      `SELECT requires_weekly_update, weekly_update_roles, is_terminal
+         FROM workflow_stages WHERE workflow_id = $1 AND code = $2`,
+      [workflowId, stage],
+    );
+    return found.rows[0];
+  }
+
+  /** The steps this action code could be at the chart's stage, one per role that may take it. */
+  private async candidatesFor(
+    db: Queryable,
+    chart: ChartState,
+    action: string,
+  ): Promise<TransitionRow[]> {
+    if (action === WEEKLY) {
+      const stage = await this.stageOf(db, chart.workflow_id, chart.current_stage);
+      if (!stage?.requires_weekly_update) return [];
+      return stage.weekly_update_roles.map((role) => ({
+        action: WEEKLY,
+        to_stage: chart.current_stage,
+        role_code: role,
+        requires_assignment: false,
+        requires_reason: false,
+        keeps_stage: true,
+      }));
+    }
+    const found = await db.query<TransitionRow>(
+      `SELECT action, to_stage, role_code, requires_assignment, requires_reason
+         FROM workflow_transitions WHERE workflow_id = $1 AND from_stage = $2 AND action = $3`,
+      [chart.workflow_id, chart.current_stage, action],
+    );
+    return found.rows;
+  }
+
+  /** Who has posted this week's Saturday update, for a chart in a stage that asks for them. */
+  private async weeklyStatus(db: Queryable, chart: ChartState): Promise<WeeklyStatus | null> {
+    const stage = await this.stageOf(db, chart.workflow_id, chart.current_stage);
+    if (!stage?.requires_weekly_update || chart.status !== 'OPEN') return null;
+    const weekEnding = saturdayOnOrBefore(await this.today(db));
+    const posted = await db.query<{ author_role: string }>(
+      `SELECT author_role FROM treatment_status_updates
+        WHERE chart_id = $1 AND kind = 'WEEKLY' AND week_ending = $2`,
+      [chart.id, weekEnding],
+    );
+    const done = new Set(posted.rows.map((row) => row.author_role));
     return {
-      today: today.rows[0]!.today,
+      weekEnding,
+      updates: stage.weekly_update_roles.map((role) => ({
+        role: role as ClinicalRole,
+        posted: done.has(role),
+      })),
+    };
+  }
+
+  private async context(
+    db: Queryable,
+    actor: Actor,
+    chart: ChartState,
+    role: string,
+  ): Promise<ActionContext> {
+    const today = await this.today(db);
+    return {
+      today,
+      weekEnding: saturdayOnOrBefore(today),
+      role,
       actor,
       tx: db,
       chart: {
@@ -319,14 +411,14 @@ export class ChartActionsService {
     actor: Actor,
     chart: ChartState,
   ): Promise<AvailableAction[]> {
-    const transitions = await db.query<TransitionRow>(
+    const found = await db.query<TransitionRow>(
       `SELECT action, to_stage, role_code, requires_assignment, requires_reason
          FROM workflow_transitions WHERE workflow_id = $1 AND from_stage = $2 ORDER BY action`,
       [chart.workflow_id, chart.current_stage],
     );
-    const context = await this.context(db, actor, chart);
+    const candidates = [...found.rows, ...(await this.candidatesFor(db, chart, WEEKLY))];
     const available: AvailableAction[] = [];
-    for (const transition of transitions.rows) {
+    for (const transition of candidates) {
       if (!actor.roles.includes(transition.role_code as never)) continue;
       const definition = CATALOGUE[transition.action];
       if (!definition) continue;
@@ -337,6 +429,8 @@ export class ChartActionsService {
         );
         if (assigned.rows.length === 0) continue;
       }
+      const context = await this.context(db, actor, chart, transition.role_code);
+      if (transition.keeps_stage && (await postedThisWeek(context))) continue;
       const fields = await this.fieldsFor(db, definition, context, transition.requires_reason);
       available.push({
         action: transition.action,
@@ -348,4 +442,14 @@ export class ChartActionsService {
     }
     return available;
   }
+}
+
+/** True when this person's role has already posted the Saturday update for this week. */
+async function postedThisWeek({ tx, chart, role, weekEnding }: ActionContext): Promise<boolean> {
+  const found = await tx.query(
+    `SELECT 1 FROM treatment_status_updates
+      WHERE chart_id = $1 AND kind = 'WEEKLY' AND week_ending = $2 AND author_role = $3`,
+    [chart.id, weekEnding, role],
+  );
+  return found.rows.length > 0;
 }

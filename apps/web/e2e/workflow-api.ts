@@ -100,3 +100,15 @@ export const chartAtPlanApproved = async (request: APIRequestContext, rtNumber: 
   await step(request, 'real.physicist', rtNumber, 'SUBMIT_PLAN', { planId: 'PLAN-1' });
   await step(request, 'real.consultant', rtNumber, 'APPROVE_PLAN', { approvedBy: 'Consultant' });
 };
+
+let slot = 30;
+
+/** On to "Plan on LINAC", with a first treatment slot of its own. */
+export const chartAtPlanOnLinac = async (request: APIRequestContext, rtNumber: string) => {
+  await chartAtPlanApproved(request, rtNumber);
+  await step(request, 'real.physicist', rtNumber, 'SEND_PLAN_TO_LINAC', {
+    linacMachine: 'LINAC 2',
+    firstSlotDate: istDay(slot++),
+    firstSlotTime: '08:00',
+  });
+};

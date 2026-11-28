@@ -142,6 +142,7 @@ const GIVE_DATES = {
 
 const detail = (chart, token) => ({
   ...chart,
+  weekly: null,
   recorded: steps.has(chart.rtNumber) ? [{ label: 'Mould appointment', value: '2 Jan 2030, 10:00' }] : [],
   availableActions: chart.stage.code === 'RT_CHART_ISSUED' && profileFor(token) === PROFILE ? [GIVE_DATES] : [],
   history: [

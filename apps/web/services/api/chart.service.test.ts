@@ -62,6 +62,7 @@ describe('ChartService.find', () => {
       parserOf()({
         ...summary,
         recorded: [],
+        weekly: null,
         availableActions: [],
         history: [
           {
@@ -107,6 +108,7 @@ describe('ChartService.perform', () => {
     const parsed = parserOf()({
       ...summary,
       recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
+      weekly: null,
       availableActions: [{ action: 'A', label: 'Do A', requiresReason: false, fields: [field], checks: [] }],
       history: [],
     }) as { availableActions: { fields: unknown[] }[] };

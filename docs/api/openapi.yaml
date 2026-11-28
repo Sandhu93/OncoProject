@@ -183,7 +183,7 @@ paths:
   /charts/by-number/{rtNumber}/actions/{action}:
     post:
       operationId: performChartAction
-      summary: Record one step of the workflow (give dates, mould done, CT Sim done, ...)
+      summary: Record one step of the workflow, or a Saturday update (POST_WEEKLY_UPDATE)
       description: |
         The chart's own answer lists the steps the signed-in person can take now (`availableActions`), each with
         the fields to fill in, their defaults and limits. Send the values in `values`, with the chart `version`
@@ -230,7 +230,7 @@ paths:
         '404':
           description: CHART_NOT_FOUND
         '409':
-          description: CHART_CHANGED (the chart moved on since `expectedVersion`), ACTION_NOT_AVAILABLE (wrong stage) or CHART_CLOSED
+          description: CHART_CHANGED (the chart moved on since `expectedVersion`), ACTION_NOT_AVAILABLE (wrong stage), CHART_CLOSED, PREREQUISITES_MISSING (the patient cannot be told yet) or ALREADY_POSTED (this role's Saturday update for the week)
 components:
   securitySchemes:
     bearer:
@@ -308,6 +308,16 @@ components:
         planId: { type: [string, 'null'] }
         contourSetName: { type: [string, 'null'] }
         scanReference: { type: [string, 'null'] }
+        phase:
+          {
+            type: [string, 'null'],
+            description: 'Getting ready, Contouring, Planning or Treatment',
+          }
+        waitingFor:
+          { type: [string, 'null'], description: 'What the chart is waiting for, in plain words' }
+        ownerRole:
+          type: [string, 'null']
+          description: The role that takes the next step; null when tracking has ended
         issuedBy: { type: string }
         createdAt: { type: string, format: date-time }
     ChartDetail:
@@ -328,7 +338,72 @@ components:
                   actorName: { type: string }
                   actorRoles: { type: array, items: { type: string } }
                   reason: { type: [string, 'null'] }
+                  summary:
+                    {
+                      type: [string, 'null'],
+                      description: 'One plain sentence of what was recorded',
+                    }
                   occurredAt: { type: string, format: date-time }
+            recorded:
+              type: array
+              description: The facts gathered so far, in the order the work happens
+              items:
+                type: object
+                properties:
+                  label: { type: string }
+                  value: { type: string }
+            weekly:
+              type: [object, 'null']
+              description: Who has posted this week's Saturday update; null when the stage asks for none
+              properties:
+                weekEnding: { type: string, format: date }
+                updates:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      role: { type: string }
+                      posted: { type: boolean }
+            availableActions:
+              type: array
+              description: The steps the signed-in person can take now, with the fields to fill in
+              items:
+                type: object
+                properties:
+                  action: { type: string }
+                  label: { type: string }
+                  requiresReason: { type: boolean }
+                  checks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        label: { type: string }
+                        ok: { type: boolean }
+                        detail: { type: string }
+                  fields:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string }
+                        label: { type: string }
+                        type: { enum: [heading, text, area, date, time, number, select, staff] }
+                        required: { type: boolean }
+                        help: { type: string }
+                        placeholder: { type: string }
+                        maxLength: { type: integer }
+                        min: { type: string }
+                        max: { type: string }
+                        default: { type: string }
+                        options:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              value: { type: string }
+                              label: { type: string }
+                        staffRole: { type: string }
     ChartList:
       type: object
       properties:

@@ -216,9 +216,9 @@ test.describe('WEB-050 recording a workflow step', () => {
     await expect(page.getByText('Waiting for the patient to attend the mould appointment')).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Recorded so far' })).toBeVisible();
     await expect(page.getByText('Mould appointment', { exact: true })).toBeVisible();
-    await expect(
-      page.getByRole('row', { name: /Give simulation dates|GIVE SIMULATION DATES|give simulation dates/i }),
-    ).toContainText('Mould booked for 2030-01-02 10:00.');
+    await expect(page.getByRole('row', { name: /Mould and CT Sim dates given/ })).toContainText(
+      'Mould booked for 2030-01-02 10:00.',
+    );
   });
 
   test('keeps what was typed and explains a field that needs attention', async ({ page }) => {

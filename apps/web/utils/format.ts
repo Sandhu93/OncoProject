@@ -18,6 +18,15 @@ export const formatDuration = (minutes: number): string => {
   return restHours === 0 ? `${days} d` : `${days} d ${restHours} h`;
 };
 
+/** "28 Nov 2026" from a plain YYYY-MM-DD day, which has no time zone to convert. */
+export const formatDay = (day: string): string => {
+  const [year, month, date] = day.split('-').map(Number);
+
+  return new Intl.DateTimeFormat('en-IN', { dateStyle: 'medium', timeZone: 'UTC' }).format(
+    new Date(Date.UTC(year!, month! - 1, date)),
+  );
+};
+
 const DATE_TIME = new Intl.DateTimeFormat('en-IN', {
   dateStyle: 'medium',
   timeStyle: 'short',

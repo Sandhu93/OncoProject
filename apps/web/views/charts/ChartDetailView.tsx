@@ -2,7 +2,7 @@ import Link from 'next/link';
 
 import type { ChartDetail } from '@oncotrack/contracts';
 
-import { formatDateTime, formatDuration } from '@/utils/format';
+import { formatDateTime, formatDay, formatDuration } from '@/utils/format';
 import { ROLE_LABELS } from '@/utils/labels';
 
 import ActionForm from './ActionForm';
@@ -10,6 +10,22 @@ import PriorityBadge from './PriorityBadge';
 
 const ACTION_LABELS: Record<string, string> = {
   ISSUE_CHART: 'Chart issued',
+  GIVE_SIMULATION_DATES: 'Mould and CT Sim dates given',
+  RECORD_MOULD_DONE: 'Mould done',
+  RECORD_CT_SIM_DONE: 'CT Sim done',
+  ASSIGN_CONTOURING: 'Contouring assigned',
+  SUBMIT_CONTOURING: 'Contouring submitted',
+  VERIFY_CONTOURING: 'Contouring verified',
+  APPROVE_CONTOURING: 'Contouring approved',
+  RETURN_CONTOURING: 'Contouring sent back',
+  SUBMIT_PLAN: 'Plan submitted',
+  APPROVE_PLAN: 'Plan approved',
+  RETURN_PLAN: 'Plan sent back',
+  SEND_PLAN_TO_LINAC: 'Plan sent to LINAC',
+  INFORM_PATIENT: 'Patient told',
+  START_TREATMENT: 'Treatment started',
+  POST_WEEKLY_UPDATE: 'Saturday update',
+  COMPLETE_TREATMENT: 'Treatment finished',
 };
 
 const actionLabel = (action: string) => ACTION_LABELS[action] ?? action.replaceAll('_', ' ').toLowerCase();
@@ -44,13 +60,22 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         <h2 id="next" className="text-lg font-medium">
           What happens next
         </h2>
-        {chart.waitingFor ? (
+        {chart.waitingFor && chart.ownerRole ? (
           <p>
             Waiting for {chart.waitingFor}
             {chart.ownerRole && ` (${ROLE_LABELS[chart.ownerRole]})`}.
           </p>
         ) : (
           <p>Nothing more to do: tracking ends here.</p>
+        )}
+        {chart.weekly && (
+          <p>
+            Saturday updates for the week ending {formatDay(chart.weekly.weekEnding)}:{' '}
+            {chart.weekly.updates
+              .map(update => `${ROLE_LABELS[update.role]} ${update.posted ? 'posted' : 'not yet'}`)
+              .join(', ')}
+            .
+          </p>
         )}
         {chart.availableActions.map(action => (
           <ActionForm key={action.action} rtNumber={chart.rtNumber} version={chart.version} action={action} />
@@ -124,12 +149,14 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
                   {entry.summary && (
                     <span className="block text-sm text-zinc-600 dark:text-zinc-400">{entry.summary}</span>
                   )}
-                  {entry.reason && (
+                  {entry.reason && !entry.summary?.includes(entry.reason) && (
                     <span className="block text-sm text-zinc-600 dark:text-zinc-400">Reason: {entry.reason}</span>
                   )}
                 </td>
                 <td className="py-2 pr-4">
-                  {entry.fromStageLabel ? `${entry.fromStageLabel} → ${entry.toStageLabel}` : entry.toStageLabel}
+                  {entry.fromStageLabel && entry.fromStage !== entry.toStage
+                    ? `${entry.fromStageLabel} → ${entry.toStageLabel}`
+                    : entry.toStageLabel}
                 </td>
                 <td className="py-2">{entry.actorName}</td>
               </tr>

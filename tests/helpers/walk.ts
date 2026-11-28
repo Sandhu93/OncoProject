@@ -61,3 +61,51 @@ export async function chartAtPlanApproved(s: WorkflowApp, rtNumber: string) {
   ).body;
   return chart;
 }
+
+let slotDay = 12;
+
+/** On to "Plan on LINAC", each chart with a first treatment slot of its own. */
+export async function chartAtPlanOnLinac(s: WorkflowApp, rtNumber: string) {
+  let chart = await chartAtPlanApproved(s, rtNumber);
+  const physicist = withRole(s, 'PHYSICIST');
+  chart = (
+    await s
+      .act(physicist, rtNumber, 'SEND_PLAN_TO_LINAC', chart.version, {
+        linacMachine: 'LINAC 1',
+        firstSlotDate: istToday(slotDay++),
+        firstSlotTime: '09:00',
+      })
+      .expect(200)
+  ).body;
+  return chart;
+}
+
+/** On to "Patient informed". */
+export async function chartAtPatientInformed(s: WorkflowApp, rtNumber: string) {
+  let chart = await chartAtPlanOnLinac(s, rtNumber);
+  chart = (
+    await s
+      .act(withRole(s, 'RADIOGRAPHER'), rtNumber, 'INFORM_PATIENT', chart.version, {
+        informedHow: 'Phone',
+        arriveDate: istToday(1),
+        arriveTime: '09:00',
+      })
+      .expect(200)
+  ).body;
+  return chart;
+}
+
+/** On to "Treatment in progress". */
+export async function chartInTreatment(s: WorkflowApp, rtNumber: string) {
+  let chart = await chartAtPatientInformed(s, rtNumber);
+  chart = (
+    await s
+      .act(withRole(s, 'JUNIOR_RESIDENT'), rtNumber, 'START_TREATMENT', chart.version, {
+        startOn: istToday(),
+      })
+      .expect(200)
+  ).body;
+  return chart;
+}
+
+export { withRole };

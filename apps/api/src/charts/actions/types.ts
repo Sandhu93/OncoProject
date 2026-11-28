@@ -10,6 +10,10 @@ export type ChartData = Record<string, string>;
 export interface ActionContext {
   /** Today in India Standard Time, YYYY-MM-DD. */
   today: string;
+  /** The Saturday on or before today: the week a Saturday update belongs to. */
+  weekEnding: string;
+  /** The role the person is acting in for this step. */
+  role: string;
   actor: Actor;
   tx: Queryable;
   chart: {
@@ -55,7 +59,7 @@ export interface ActionDefinition {
   /** Conditions shown before the step (used by "tell the patient"). */
   checks?(context: ActionContext): ActionCheck[];
   /** Refuses with a DomainError when the chart is not ready for this step. */
-  assertReady?(context: ActionContext): void;
+  assertReady?(context: ActionContext): void | Promise<void>;
   /** Writes outside the chart's own row (assignments, treatment updates). Runs in the same transaction. */
   afterApply?(values: Record<string, string>, context: ActionContext): Promise<void>;
   /** Short references that are also kept in the chart's own columns. */

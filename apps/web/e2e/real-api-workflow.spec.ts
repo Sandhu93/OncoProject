@@ -1,6 +1,12 @@
 import { expect, test } from '@playwright/test';
 
-import { chartAtCtSimDone, chartAtPhysicsPlanning, chartAtPlanApproved, istDay } from './workflow-api';
+import {
+  chartAtCtSimDone,
+  chartAtPhysicsPlanning,
+  chartAtPlanApproved,
+  chartAtPlanOnLinac,
+  istDay,
+} from './workflow-api';
 
 // The workflow, step by step, in a browser against the real API on a real (in-memory) PostgreSQL.
 // Each describe issues its own chart so the tests do not depend on each other's charts.
@@ -49,8 +55,10 @@ test.describe('WEB-051 getting ready: the radiographer steps', () => {
     await expect(page.getByText('Waiting for the patient to attend the mould appointment')).toBeVisible();
     await expect(page.getByText('Mould appointment', { exact: true })).toBeVisible();
     await expect(page.getByText('CT Sim appointment', { exact: true })).toBeVisible();
-    await expect(page.getByRole('row', { name: /Give simulation dates/i })).toContainText('Full bladder please.');
-    await expect(page.getByRole('row', { name: /Give simulation dates/i })).toContainText('Real Test Radiographer');
+    await expect(page.getByRole('row', { name: /Mould and CT Sim dates given/ })).toContainText('Full bladder please.');
+    await expect(page.getByRole('row', { name: /Mould and CT Sim dates given/ })).toContainText(
+      'Real Test Radiographer',
+    );
   });
 
   test('a mould date in the past is refused where the person is looking, and nothing is saved', async ({ page }) => {
@@ -254,5 +262,89 @@ test.describe('WEB-053 planning: plan, approve, send back, send to the LINAC', (
     await page.getByLabel('First treatment time').fill('10:00');
     await page.getByRole('button', { name: 'Send plan to LINAC' }).click();
     await expect(page.getByText('Waiting for the radiographer to inform the patient')).toBeVisible();
+  });
+});
+
+test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, finish', () => {
+  const rtNumber = `WF/${STAMP}/4`;
+  const open = (page: import('@playwright/test').Page) => page.goto(`/charts/${encodeURIComponent(rtNumber)}`);
+
+  test('the radiographer sees what is in place, then tells the patient', async ({ page, request }) => {
+    await request.post(`${CONTROL}/activate-workflow`);
+    await chartAtPlanOnLinac(request, rtNumber);
+    await logIn(page, 'real.radiographer');
+    await open(page);
+
+    const checks = page.getByRole('list', { name: 'Before you start' });
+
+    await expect(checks).toContainText('Contouring approved: Done');
+    await expect(checks).toContainText('Plan approved: Done');
+    await expect(checks).toContainText('LINAC slot reserved: Done');
+    await expect(checks).toContainText('LINAC 2');
+
+    await page.getByLabel('How was the patient told?').selectOption('In person');
+    await page.getByLabel('Patient should arrive on').fill(istDay(1));
+    await page.getByLabel('Note').fill('Came to the ward.');
+    await page.getByRole('button', { name: 'Tell patient to come' }).click();
+
+    await expect(page.getByText('Waiting for the patient to arrive and treatment to start')).toBeVisible();
+    await expect(page.getByText('Patient told', { exact: true })).toBeVisible();
+    await expect(page.getByRole('row', { name: /Patient told by in person/ })).toContainText('Came to the ward.');
+  });
+
+  test('a junior resident records the start and treatment is in progress', async ({ page }) => {
+    await logIn(page, 'real.junior');
+    await open(page);
+    await page.getByLabel('Date treatment started').fill(istDay(1));
+    await page.getByRole('button', { name: 'Record treatment start' }).click();
+    await expect(page.getByLabel('Date treatment started')).toHaveAccessibleDescription('This date is in the future.');
+
+    await page.getByLabel('Date treatment started').fill(istDay());
+    await page.getByRole('button', { name: 'Record treatment start' }).click();
+
+    await expect(page.getByText('Waiting for weekly updates, then completion')).toBeVisible();
+    await expect(page.getByRole('term').filter({ hasText: 'Sessions given so far' })).toBeVisible();
+    await expect(
+      page.getByText(/Saturday updates for the week ending .*Junior resident not yet, Radiographer not yet/),
+    ).toBeVisible();
+  });
+
+  test('both roles post their Saturday update once, and the page says who has', async ({ page }) => {
+    await logIn(page, 'real.junior');
+    await open(page);
+
+    await page.getByLabel('Any gap in treatment this week?').selectOption('Yes');
+    await page.getByRole('button', { name: 'Post Saturday update' }).click();
+    await expect(page.getByLabel('Operational note')).toHaveAccessibleDescription(/Say what happened/);
+
+    await page.getByLabel('Operational note').fill('Machine service on Tuesday.');
+    await page.getByRole('button', { name: 'Post Saturday update' }).click();
+
+    await expect(page.getByText(/Junior resident posted, Radiographer not yet/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Post Saturday update' })).toHaveCount(0);
+    await expect(
+      page.getByRole('row', { name: /Saturday update posted\. 5 of 20 sessions given\. There was a gap/ }),
+    ).toBeVisible();
+
+    await logIn(page, 'real.radiographer');
+    await open(page);
+    await page.getByRole('button', { name: 'Post Saturday update' }).click();
+    await expect(page.getByText(/Junior resident posted, Radiographer posted/)).toBeVisible();
+  });
+
+  test('finishing early needs a note, then tracking ends', async ({ page }) => {
+    await logIn(page, 'real.junior');
+    await open(page);
+    await page.getByLabel('Sessions given in total').fill('12');
+    await page.getByRole('button', { name: 'Record treatment complete' }).click();
+    await expect(page.getByLabel('Note')).toHaveAccessibleDescription(/Say why treatment ended early/);
+
+    await page.getByLabel('Note').fill('Patient moved to another hospital.');
+    await page.getByRole('button', { name: 'Record treatment complete' }).click();
+
+    await expect(page.getByText('Nothing more to do: tracking ends here.')).toBeVisible();
+    await expect(page.getByText(/closed/).first()).toBeVisible();
+    await expect(page.getByRole('form')).toHaveCount(0);
+    await expect(page.getByText('Treatment finished', { exact: true }).first()).toBeVisible();
   });
 });

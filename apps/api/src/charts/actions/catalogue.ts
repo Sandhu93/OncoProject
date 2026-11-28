@@ -16,6 +16,12 @@ import {
   SEND_PLAN_TO_LINAC,
   SUBMIT_PLAN,
 } from './definitions/planning.js';
+import {
+  COMPLETE_TREATMENT,
+  INFORM_PATIENT,
+  POST_WEEKLY_UPDATE,
+  START_TREATMENT,
+} from './definitions/treatment.js';
 import type { ActionDefinition } from './types.js';
 
 /**
@@ -36,4 +42,8 @@ export const CATALOGUE: Readonly<Record<string, ActionDefinition>> = {
   APPROVE_PLAN,
   RETURN_PLAN,
   SEND_PLAN_TO_LINAC,
+  INFORM_PATIENT,
+  START_TREATMENT,
+  COMPLETE_TREATMENT,
+  POST_WEEKLY_UPDATE,
 };

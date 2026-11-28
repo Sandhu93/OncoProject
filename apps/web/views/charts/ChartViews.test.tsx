@@ -107,6 +107,7 @@ describe('ChartDetailView', () => {
   const detail: ChartDetail = {
     ...chart({ planId: 'PLAN-7' }),
     recorded: [{ label: 'Mould done', value: '1 Dec 2026' }],
+    weekly: null,
     availableActions: [],
     history: [
       {

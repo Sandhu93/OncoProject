@@ -217,9 +217,18 @@ export interface RecordedFact {
   value: string;
 }
 
+/** Who has posted this week's Saturday update, for a chart in treatment. */
+export interface WeeklyStatus {
+  /** The Saturday the week ends on (YYYY-MM-DD). */
+  weekEnding: string;
+  updates: readonly { role: ClinicalRole; posted: boolean }[];
+}
+
 export interface ChartDetail extends ChartSummary {
   history: readonly ChartHistoryEntry[];
   recorded: readonly RecordedFact[];
+  /** Saturday updates due this week; null when the chart is not in a stage that asks for them. */
+  weekly: WeeklyStatus | null;
   /** Steps the signed-in person may take now: empty when it is someone else's turn. */
   availableActions: readonly AvailableAction[];
 }
