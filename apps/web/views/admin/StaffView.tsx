@@ -6,7 +6,15 @@ import { CAPABILITY_LABELS, ROLE_LABELS } from '@/utils/labels';
 import { CreateStaffForm, DeleteStaffForm, EditStaffForm, PasswordForm } from './StaffForms';
 
 /** Everyone who can use OncoTrack, with the forms to change them. */
-export default function StaffView({ members, youId }: { members: readonly StaffMember[]; youId: string }) {
+export default function StaffView({
+  members,
+  youId,
+  directoryEnabled = false,
+}: {
+  members: readonly StaffMember[];
+  youId: string;
+  directoryEnabled?: boolean;
+}) {
   return (
     <>
       <p className="text-sm text-zinc-600 dark:text-zinc-400">
@@ -21,6 +29,11 @@ export default function StaffView({ members, youId }: { members: readonly StaffM
               <h2 className="text-base font-semibold">{member.fullName}</h2>
               <span className="text-sm text-zinc-600 dark:text-zinc-400">{member.username}</span>
               {member.id === youId && <span className="text-sm">(you)</span>}
+              {member.identityProvider === 'DIRECTORY' && (
+                <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs font-semibold dark:bg-zinc-800">
+                  Directory
+                </span>
+              )}
               {!member.isActive && (
                 <span className="rounded bg-zinc-200 px-2 py-0.5 text-xs font-semibold dark:bg-zinc-800">
                   Switched off
@@ -48,7 +61,11 @@ export default function StaffView({ members, youId }: { members: readonly StaffM
               </summary>
               <div className="mt-3 flex flex-col gap-6">
                 <EditStaffForm member={member} isYou={member.id === youId} />
-                <PasswordForm member={member} />
+                {member.identityProvider === 'LOCAL' ? (
+                  <PasswordForm member={member} />
+                ) : (
+                  <p className="text-sm">Signs in with the hospital directory, so the password is changed there.</p>
+                )}
                 {member.canDelete && member.id !== youId && <DeleteStaffForm member={member} />}
               </div>
             </details>
@@ -56,7 +73,7 @@ export default function StaffView({ members, youId }: { members: readonly StaffM
         ))}
       </ul>
 
-      <CreateStaffForm />
+      <CreateStaffForm directoryEnabled={directoryEnabled} />
     </>
   );
 }

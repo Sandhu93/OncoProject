@@ -23,8 +23,52 @@ export function readConfig(env: NodeJS.ProcessEnv = process.env) {
   if (!Number.isInteger(sweepMinutes) || sweepMinutes < 0 || sweepMinutes > 1440) {
     throw new Error('NOTIFICATION_SWEEP_MINUTES must be an integer between 0 and 1440.');
   }
+  // Directory (LDAP) sign-in is off unless DIRECTORY_URL is set. The password is checked by binding as the person, so
+  // no service account is needed. DIRECTORY_BIND_DN is the person's DN with {username} where their login name goes
+  // (for example "uid={username},ou=staff,dc=hospital,dc=local" or "{username}@hospital.local").
+  const directoryUrl = env.DIRECTORY_URL?.trim();
+  let directory:
+    | {
+        url: string;
+        bindDn: string;
+        startTls: boolean;
+        caFile: string | undefined;
+        timeoutMs: number;
+      }
+    | undefined;
+  if (directoryUrl) {
+    const url = new URL(directoryUrl);
+    if (!['ldap:', 'ldaps:'].includes(url.protocol)) {
+      throw new Error(
+        'DIRECTORY_URL must start with ldaps:// (or ldap:// with DIRECTORY_START_TLS=true).',
+      );
+    }
+    const startTls = env.DIRECTORY_START_TLS === 'true';
+    if (url.protocol === 'ldap:' && !startTls) {
+      // A password must never cross the network unencrypted.
+      throw new Error(
+        'DIRECTORY_URL uses ldap://, which needs DIRECTORY_START_TLS=true. Prefer ldaps://.',
+      );
+    }
+    const bindDn = env.DIRECTORY_BIND_DN?.trim() ?? '';
+    if (!bindDn.includes('{username}')) {
+      throw new Error('DIRECTORY_BIND_DN must contain {username}.');
+    }
+    const timeoutMs = Number(env.DIRECTORY_TIMEOUT_MS ?? 5000);
+    if (!Number.isInteger(timeoutMs) || timeoutMs < 500 || timeoutMs > 60000) {
+      throw new Error('DIRECTORY_TIMEOUT_MS must be an integer between 500 and 60000.');
+    }
+    directory = {
+      url: directoryUrl,
+      bindDn,
+      startTls,
+      caFile: env.DIRECTORY_CA_FILE?.trim() || undefined,
+      timeoutMs,
+    };
+  }
   return {
     port,
+    directory,
     host: env.API_HOST ?? '127.0.0.1',
     databaseUrl: env.DATABASE_URL,
     sessionTtlHours,

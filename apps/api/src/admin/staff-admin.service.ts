@@ -8,6 +8,8 @@ import {
 } from '@oncotrack/contracts';
 import { randomUUID } from 'node:crypto';
 import type { Actor } from '../auth/actor.js';
+import { DIRECTORY_USERNAME } from '../auth/directory.service.js';
+import { DirectoryService } from '../auth/directory.service.js';
 import { checkPasswordPolicy, hashPassword } from '../auth/password.js';
 import { DatabaseService, type Queryable } from '../database/database.service.js';
 import { CommandService } from '../transactions/command.service.js';
@@ -15,12 +17,13 @@ import { DomainError, type FieldProblem } from '../transactions/domain-error.js'
 import { requireCapability } from './capability.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const USERNAME = /^[a-z0-9][a-z0-9._-]{2,49}$/;
+const USERNAME = DIRECTORY_USERNAME;
 
 interface Row {
   id: string;
   username: string;
   full_name: string;
+  identity_provider: 'LOCAL' | 'DIRECTORY';
   is_active: boolean;
   is_available: boolean;
   created_at: Date | string;
@@ -47,6 +50,7 @@ const toMember = (row: Row, used: ReadonlySet<string>): StaffMember => ({
   fullName: row.full_name,
   roles: row.roles as ClinicalRole[],
   capabilities: row.capabilities as StaffCapability[],
+  identityProvider: row.identity_provider,
   isActive: row.is_active,
   isAvailable: row.is_available,
   createdAt: iso(row.created_at),
@@ -79,12 +83,18 @@ export class StaffAdminService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(CommandService) private readonly commands: CommandService,
+    @Inject(DirectoryService) private readonly directory: DirectoryService,
   ) {}
+
+  /** Whether accounts can be set up to sign in with the hospital directory. */
+  get directoryEnabled(): boolean {
+    return this.directory.enabled;
+  }
 
   async list(actor: Actor, db: Queryable = this.database): Promise<StaffMember[]> {
     requireCapability(actor, 'MANAGE_STAFF');
     const found = await db.query<Row>(
-      `SELECT u.id, u.username, u.full_name, u.is_active, u.is_available, u.created_at,
+      `SELECT u.id, u.username, u.full_name, u.identity_provider, u.is_active, u.is_available, u.created_at,
               COALESCE((SELECT array_agg(r.role_code ORDER BY r.role_code) FROM staff_roles r WHERE r.staff_id = u.id), '{}') AS roles,
               COALESCE((SELECT array_agg(c.capability ORDER BY c.capability) FROM staff_capabilities c WHERE c.staff_id = u.id), '{}') AS capabilities,
               (SELECT max(a.occurred_at) FROM audit_events a WHERE a.actor_id = u.id AND a.action = 'LOGIN_SUCCEEDED') AS last_login
@@ -124,16 +134,39 @@ export class StaffAdminService {
     ) {
       problems.push({ field: 'roles', message: 'Choose at least one role.' });
     }
+    const provider = input.identityProvider ?? 'LOCAL';
+    if (provider !== 'LOCAL' && provider !== 'DIRECTORY') {
+      problems.push({ field: 'identityProvider', message: 'Choose LOCAL or DIRECTORY.' });
+    }
     const password = typeof input.password === 'string' ? input.password : '';
-    const passwordProblem = checkPasswordPolicy(password);
-    if (passwordProblem) problems.push({ field: 'password', message: passwordProblem });
+    if (provider === 'DIRECTORY') {
+      if (!this.directory.enabled) {
+        problems.push({
+          field: 'identityProvider',
+          message: 'Directory sign-in is not set up on this server.',
+        });
+      }
+      if (password) {
+        problems.push({
+          field: 'password',
+          message: 'A directory account has no password here. The directory keeps it.',
+        });
+      }
+    } else {
+      const passwordProblem = checkPasswordPolicy(password);
+      if (passwordProblem) problems.push({ field: 'password', message: passwordProblem });
+    }
     if (problems.length > 0) refuse(problems);
 
-    const passwordHash = await hashPassword(password);
+    const passwordHash = provider === 'DIRECTORY' ? null : await hashPassword(password);
     return this.commands.run(
       actor,
       // The password is left out on purpose, so nothing derived from it is kept with the request.
-      { operation: 'staff.create', key, payload: { username, fullName, roles, capabilities } },
+      {
+        operation: 'staff.create',
+        key,
+        payload: { username, fullName, roles, capabilities, provider },
+      },
       async (tx, { requestId }) => {
         const taken = await tx.query('SELECT 1 FROM staff_users WHERE username = $1', [username]);
         if (taken.rows.length > 0) {
@@ -143,9 +176,16 @@ export class StaffAdminService {
         }
         const id = randomUUID();
         await tx.query(
-          `INSERT INTO staff_users(id, username, full_name, identity_provider, password_hash, is_active)
-           VALUES ($1, $2, $3, 'LOCAL', $4, true)`,
-          [id, username, fullName, passwordHash],
+          `INSERT INTO staff_users(id, username, full_name, identity_provider, password_hash, external_subject, is_active)
+           VALUES ($1, $2, $3, $4, $5, $6, true)`,
+          [
+            id,
+            username,
+            fullName,
+            provider,
+            passwordHash,
+            provider === 'DIRECTORY' ? username : null,
+          ],
         );
         await this.writeSets(tx, id, roles, capabilities);
         await this.audit(tx, actor, requestId, 'STAFF_CREATED', id, null, {
@@ -291,6 +331,13 @@ export class StaffAdminService {
       async (tx, { requestId }) => {
         const member = await this.one(tx, id, true);
         if (!member) throw new DomainError(404, 'STAFF_NOT_FOUND', 'No such staff account.');
+        if (member.identityProvider === 'DIRECTORY') {
+          throw new DomainError(
+            409,
+            'DIRECTORY_ACCOUNT',
+            'This account signs in with the hospital directory. Its password is changed there.',
+          );
+        }
         await tx.query(
           'UPDATE staff_users SET password_hash = $2, updated_at = now() WHERE id = $1',
           [id, passwordHash],
@@ -397,7 +444,7 @@ export class StaffAdminService {
         .query('SELECT 1 FROM staff_users WHERE id = $1 FOR UPDATE', [id])
         .catch(() => undefined);
     const found = await db.query<Row>(
-      `SELECT u.id, u.username, u.full_name, u.is_active, u.is_available, u.created_at,
+      `SELECT u.id, u.username, u.full_name, u.identity_provider, u.is_active, u.is_available, u.created_at,
               COALESCE((SELECT array_agg(r.role_code ORDER BY r.role_code) FROM staff_roles r WHERE r.staff_id = u.id), '{}') AS roles,
               COALESCE((SELECT array_agg(c.capability ORDER BY c.capability) FROM staff_capabilities c WHERE c.staff_id = u.id), '{}') AS capabilities,
               (SELECT max(a.occurred_at) FROM audit_events a WHERE a.actor_id = u.id AND a.action = 'LOGIN_SUCCEEDED') AS last_login

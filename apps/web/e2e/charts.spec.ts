@@ -592,4 +592,25 @@ test.describe('WEB-090 staff, workflow and audit', () => {
 
     await expect(used.getByRole('button', { name: 'Delete this account' })).toHaveCount(0);
   });
+
+  test('adds a directory account without a password, and shows it as one', async ({ context, baseURL, page }) => {
+    await signIn(context, baseURL!);
+    await page.goto('/staff');
+
+    const form = page.getByRole('form', { name: 'Add an account' });
+
+    await form.getByRole('textbox', { name: 'Full name' }).fill('Dr From Directory');
+    await form.getByRole('textbox', { name: 'Username' }).fill('e2e.directory.new');
+    await form.getByRole('radio', { name: /hospital directory/ }).check();
+    await expect(form.getByLabel('First password')).toHaveCount(0);
+    await form.getByRole('checkbox', { name: 'Senior resident' }).check();
+    await form.getByRole('button', { name: 'Add account' }).click();
+
+    const person = page.getByRole('listitem').filter({ hasText: 'e2e.directory.new' });
+
+    await expect(person).toContainText('Directory');
+    await person.getByText('Change Dr From Directory').click();
+    await expect(person.getByText('password is changed there')).toBeVisible();
+    await expect(person.getByRole('form', { name: /New password for/ })).toHaveCount(0);
+  });
 });

@@ -421,7 +421,13 @@ paths:
                 capabilities:
                   type: array
                   items: { enum: [MANAGE_STAFF, CONFIGURE_WORKFLOW, VIEW_AUDIT, EXPORT_REPORTS] }
-                password: { type: string }
+                identityProvider:
+                  {
+                    enum: [LOCAL, DIRECTORY],
+                    default: LOCAL,
+                    description: DIRECTORY needs directory sign-in set up and takes no password,
+                  }
+                password: { type: string, description: Required for LOCAL accounts }
       responses:
         '201':
           description: The new StaffMember
@@ -519,6 +525,8 @@ paths:
           description: CAPABILITY_REQUIRED
         '404':
           description: STAFF_NOT_FOUND
+        '409':
+          description: DIRECTORY_ACCOUNT (its password is kept in the directory)
   /admin/workflow:
     get:
       operationId: getActiveWorkflow

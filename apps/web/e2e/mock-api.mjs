@@ -113,6 +113,7 @@ const staffMembers = new Map(
   [
     {
       ...PROFILE,
+      identityProvider: 'LOCAL',
       isActive: true,
       isAvailable: true,
       createdAt: minutesAgo(5000),
@@ -125,11 +126,25 @@ const staffMembers = new Map(
       fullName: 'Synthetic Resident',
       roles: ['JUNIOR_RESIDENT'],
       capabilities: [],
+      identityProvider: 'LOCAL',
       isActive: true,
       isAvailable: true,
       createdAt: minutesAgo(5000),
       lastLoginAt: null,
       canDelete: true,
+    },
+    {
+      id: '00000000-0000-4000-8000-000000000003',
+      username: 'synthetic.directory',
+      fullName: 'Synthetic Directory User',
+      roles: ['PHYSICIST'],
+      capabilities: [],
+      identityProvider: 'DIRECTORY',
+      isActive: true,
+      isAvailable: true,
+      createdAt: minutesAgo(5000),
+      lastLoginAt: null,
+      canDelete: false,
     },
   ].map(member => [member.id, member]),
 );
@@ -409,7 +424,7 @@ const server = createServer(async (request, response) => {
     if (route.pathname === '/api/v1/admin/staff' && method === 'GET') {
       if (!need('MANAGE_STAFF')) return;
 
-      return send(response, 200, { items: [...staffMembers.values()] });
+      return send(response, 200, { items: [...staffMembers.values()], directoryEnabled: true });
     }
 
     if (route.pathname === '/api/v1/admin/staff' && method === 'POST') {
@@ -428,7 +443,9 @@ const server = createServer(async (request, response) => {
       if (!Array.isArray(body.roles) || body.roles.length === 0) {
         problems.push({ field: 'roles', message: 'Choose at least one role.' });
       }
-      if (String(body.password ?? '').length < 12) {
+      const directoryAccount = body.identityProvider === 'DIRECTORY';
+
+      if (!directoryAccount && String(body.password ?? '').length < 12) {
         problems.push({ field: 'password', message: 'Use at least 12 characters.' });
       }
       if (problems.length > 0)
@@ -445,6 +462,7 @@ const server = createServer(async (request, response) => {
         fullName: String(body.fullName).trim(),
         roles: body.roles,
         capabilities: body.capabilities ?? [],
+        identityProvider: directoryAccount ? 'DIRECTORY' : 'LOCAL',
         isActive: true,
         isAvailable: true,
         createdAt: new Date().toISOString(),

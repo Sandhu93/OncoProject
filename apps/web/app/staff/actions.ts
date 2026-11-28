@@ -40,10 +40,22 @@ export async function createStaff(_previous: StaffFormState, formData: FormData)
   const username = String(formData.get('username') ?? '');
   const fullName = String(formData.get('fullName') ?? '');
   const password = String(formData.get('password') ?? '');
-  const values = { username, fullName, roles, capabilities };
+  const identityProvider = formData.get('identityProvider') === 'DIRECTORY' ? 'DIRECTORY' : 'LOCAL';
+  const values = { username, fullName, roles, capabilities, identityProvider };
 
   try {
-    await AdminService.createStaff({ username, fullName, roles, capabilities, password }, randomUUID());
+    await AdminService.createStaff(
+      {
+        username,
+        fullName,
+        roles,
+        capabilities,
+        identityProvider,
+        // A directory account has no password here; the directory keeps it.
+        ...(identityProvider === 'LOCAL' ? { password } : {}),
+      },
+      randomUUID(),
+    );
   } catch (error) {
     return fail(error, 'Adding the account', values);
   }

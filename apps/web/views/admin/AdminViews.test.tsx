@@ -30,6 +30,7 @@ const member = (change: Partial<StaffMember>): StaffMember => ({
   createdAt: '2026-11-01T05:30:00.000Z',
   lastLoginAt: null,
   canDelete: false,
+  identityProvider: 'LOCAL',
   ...change,
 });
 
@@ -149,6 +150,32 @@ describe('StaffView', () => {
 
     expect(await within(saved).findByText(/Password set/)).toBeInTheDocument();
     expect(within(saved).getByLabelText('New password')).toHaveValue('');
+  });
+});
+
+describe('directory accounts', () => {
+  it('offers the choice only when the directory is set up, and drops the password for a directory account', async () => {
+    const { rerender } = render(<StaffView members={[]} youId="me" />);
+
+    expect(screen.queryByRole('radio', { name: /hospital directory/ })).not.toBeInTheDocument();
+
+    rerender(<StaffView members={[]} youId="me" directoryEnabled />);
+
+    const form = screen.getByRole('form', { name: 'Add an account' });
+
+    expect(within(form).getByLabelText('First password')).toBeInTheDocument();
+    await userEvent.setup().click(within(form).getByRole('radio', { name: /hospital directory/ }));
+    expect(within(form).queryByLabelText('First password')).not.toBeInTheDocument();
+  });
+
+  it('marks a directory account, and says its password is kept in the directory', () => {
+    render(
+      <StaffView members={[member({ id: 'd', fullName: 'Dr Directory', identityProvider: 'DIRECTORY' })]} youId="me" />,
+    );
+
+    expect(screen.getByText('Directory')).toBeInTheDocument();
+    expect(screen.getByText(/password is changed there/)).toBeInTheDocument();
+    expect(screen.queryByRole('form', { name: 'New password for Dr Directory' })).not.toBeInTheDocument();
   });
 });
 

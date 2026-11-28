@@ -30,8 +30,10 @@ export class AdminController {
   ) {}
 
   @Get('staff')
-  async listStaff(@CurrentActor() actor: Actor): Promise<{ items: StaffMember[] }> {
-    return { items: await this.staff.list(actor) };
+  async listStaff(
+    @CurrentActor() actor: Actor,
+  ): Promise<{ items: StaffMember[]; directoryEnabled: boolean }> {
+    return { items: await this.staff.list(actor), directoryEnabled: this.staff.directoryEnabled };
   }
 
   @Post('staff')

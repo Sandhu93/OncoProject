@@ -19,6 +19,7 @@ const StaffMemberSchema = z.object({
   fullName: z.string(),
   roles: z.array(z.enum(CLINICAL_ROLES)),
   capabilities: z.array(z.enum(STAFF_CAPABILITIES)),
+  identityProvider: z.enum(['LOCAL', 'DIRECTORY']),
   isActive: z.boolean(),
   isAvailable: z.boolean(),
   createdAt: z.string(),
@@ -94,13 +95,12 @@ export interface AuditQuery {
 
 /** Staff accounts, the workflow in use and the audit trail. The API checks who may use each. */
 export default class AdminService {
-  static staff = async () =>
-    (
-      await handleRequest<{ items: StaffMember[] }>('/admin/staff', {
-        requiresAuth: true,
-        parse: data => z.object({ items: z.array(StaffMemberSchema) }).parse(data),
-      })
-    ).items;
+  /** Every account, and whether accounts can be set up to sign in with the hospital directory. */
+  static staff = () =>
+    handleRequest<{ items: StaffMember[]; directoryEnabled: boolean }>('/admin/staff', {
+      requiresAuth: true,
+      parse: data => z.object({ items: z.array(StaffMemberSchema), directoryEnabled: z.boolean() }).parse(data),
+    });
 
   static createStaff = (payload: CreateStaffRequest, idempotencyKey: string) =>
     handleRequest<StaffMember>('/admin/staff', {

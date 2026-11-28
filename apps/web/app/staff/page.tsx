@@ -15,7 +15,9 @@ export const dynamic = 'force-dynamic';
 export default async function StaffPage() {
   const staff = await StaffService.me();
   const allowed = staff.capabilities.includes('MANAGE_STAFF');
-  const members = allowed ? await AdminService.staff() : [];
+  const { items: members, directoryEnabled } = allowed
+    ? await AdminService.staff()
+    : { items: [], directoryEnabled: false };
 
   return (
     <main className="mx-auto flex min-h-screen max-w-3xl flex-col gap-6 p-8">
@@ -23,7 +25,11 @@ export default async function StaffPage() {
 
       <h1 className="text-2xl font-semibold">Staff</h1>
 
-      {allowed ? <StaffView members={members} youId={staff.id} /> : <NoAccess what="manage staff accounts" />}
+      {allowed ? (
+        <StaffView members={members} youId={staff.id} directoryEnabled={directoryEnabled} />
+      ) : (
+        <NoAccess what="manage staff accounts" />
+      )}
     </main>
   );
 }

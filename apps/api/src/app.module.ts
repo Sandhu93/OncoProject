@@ -7,6 +7,7 @@ import { WorkflowViewService } from './admin/workflow-view.service.js';
 import { AccessGuard } from './auth/access.guard.js';
 import { AuthController } from './auth/auth.controller.js';
 import { AuthService } from './auth/auth.service.js';
+import { DirectoryService } from './auth/directory.service.js';
 import { SessionService } from './auth/session.service.js';
 import { CalendarService } from './charts/calendar.service.js';
 import { ChartActionsService } from './charts/chart-actions.service.js';
@@ -33,6 +34,7 @@ import { CommandService } from './transactions/command.service.js';
   providers: [
     DatabaseService,
     SessionService,
+    DirectoryService,
     AuthService,
     CommandService,
     ChartsService,

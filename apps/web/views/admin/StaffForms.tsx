@@ -1,6 +1,6 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useState } from 'react';
 
 import { CLINICAL_ROLES, STAFF_CAPABILITIES, type StaffMember } from '@oncotrack/contracts';
 
@@ -65,8 +65,9 @@ function Messages({ state }: { state: StaffFormState }) {
 }
 
 /** Add an account. The form clears itself once the account is saved. */
-export function CreateStaffForm() {
+export function CreateStaffForm({ directoryEnabled }: { directoryEnabled: boolean }) {
   const [state, formAction, pending] = useActionState<StaffFormState, FormData>(createStaff, {});
+  const [provider, setProvider] = useState(state.values?.identityProvider === 'DIRECTORY' ? 'DIRECTORY' : 'LOCAL');
   const errors = state.fieldErrors;
   const values = state.values ?? {};
   // A saved account clears the form: the fields are remounted with nothing in them.
@@ -116,24 +117,55 @@ export function CreateStaffForm() {
         {first(errors, 'username') && <p className="text-sm text-red-600">{first(errors, 'username')}</p>}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <label htmlFor="new-password" className="text-sm font-medium">
-          First password
-        </label>
-        <p className="text-sm text-zinc-600 dark:text-zinc-400">
-          At least 12 characters. Tell the person in person, not in a message.
-        </p>
-        <input
-          id="new-password"
-          name="password"
-          type="password"
-          autoComplete="new-password"
-          maxLength={128}
-          aria-invalid={first(errors, 'password') ? true : undefined}
-          className={INPUT}
-        />
-        {first(errors, 'password') && <p className="text-sm text-red-600">{first(errors, 'password')}</p>}
-      </div>
+      {directoryEnabled && (
+        <fieldset className="flex flex-col gap-1">
+          <legend className="text-sm font-medium">How they sign in</legend>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="identityProvider"
+              value="LOCAL"
+              checked={provider === 'LOCAL'}
+              onChange={() => setProvider('LOCAL')}
+            />
+            A password set here
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="radio"
+              name="identityProvider"
+              value="DIRECTORY"
+              checked={provider === 'DIRECTORY'}
+              onChange={() => setProvider('DIRECTORY')}
+            />
+            The hospital directory (they use their directory password)
+          </label>
+          {first(errors, 'identityProvider') && (
+            <p className="text-sm text-red-600">{first(errors, 'identityProvider')}</p>
+          )}
+        </fieldset>
+      )}
+
+      {provider === 'LOCAL' && (
+        <div className="flex flex-col gap-1">
+          <label htmlFor="new-password" className="text-sm font-medium">
+            First password
+          </label>
+          <p className="text-sm text-zinc-600 dark:text-zinc-400">
+            At least 12 characters. Tell the person in person, not in a message.
+          </p>
+          <input
+            id="new-password"
+            name="password"
+            type="password"
+            autoComplete="new-password"
+            maxLength={128}
+            aria-invalid={first(errors, 'password') ? true : undefined}
+            className={INPUT}
+          />
+          {first(errors, 'password') && <p className="text-sm text-red-600">{first(errors, 'password')}</p>}
+        </div>
+      )}
 
       <Checks
         legend="Roles"

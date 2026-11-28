@@ -385,6 +385,8 @@ export interface StaffMember {
   roles: readonly ClinicalRole[];
   capabilities: readonly StaffCapability[];
   /** Can sign in. A switched-off account keeps its history but cannot sign in. */
+  /** LOCAL accounts have a password here; DIRECTORY accounts sign in with the hospital directory. */
+  identityProvider: 'LOCAL' | 'DIRECTORY';
   isActive: boolean;
   /** Offered when a chart is assigned (for example to contour); false while on leave. */
   isAvailable: boolean;
@@ -399,7 +401,9 @@ export interface CreateStaffRequest {
   fullName: string;
   roles: readonly ClinicalRole[];
   capabilities: readonly StaffCapability[];
-  password: string;
+  /** Defaults to LOCAL. DIRECTORY needs directory sign-in to be set up and takes no password. */
+  identityProvider?: 'LOCAL' | 'DIRECTORY';
+  password?: string;
 }
 
 /** Only what is sent changes. Roles and capabilities replace the whole set. */

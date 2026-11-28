@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import request from 'supertest';
 import { AppModule } from '../../apps/api/src/app.module.js';
 import { configureApp } from '../../apps/api/src/bootstrap.js';
+import { DirectoryService } from '../../apps/api/src/auth/directory.service.js';
 import { DatabaseService } from '../../apps/api/src/database/database.service.js';
 import { NotificationService } from '../../apps/api/src/notifications/notification.service.js';
 import { addStaff, createTestDatabase } from './test-database.js';
@@ -22,12 +23,13 @@ export const istToday = (offsetDays = 0): string => {
  * The real API on an in-memory PostgreSQL with the proposed 14-stage RT workflow approved, and one account
  * per role. Synthetic data only.
  */
-export async function startWorkflowApp() {
+export async function startWorkflowApp(options: { directory?: DirectoryService } = {}) {
   const test = await createTestDatabase();
-  const module = await Test.createTestingModule({ imports: [AppModule] })
+  const builder = Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(DatabaseService)
-    .useValue(test.service)
-    .compile();
+    .useValue(test.service);
+  if (options.directory) builder.overrideProvider(DirectoryService).useValue(options.directory);
+  const module = await builder.compile();
   const app = module.createNestApplication();
   configureApp(app);
   await app.init();

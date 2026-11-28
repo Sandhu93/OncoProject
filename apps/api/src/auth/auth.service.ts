@@ -4,12 +4,14 @@ import {
   HttpStatus,
   Inject,
   Injectable,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
 import type { LoginResponse } from '@oncotrack/contracts';
 import { readConfig } from '../config.js';
 import { DatabaseService } from '../database/database.service.js';
 import type { Actor } from './actor.js';
+import { DirectoryService, DirectoryUnavailableError } from './directory.service.js';
 import { PASSWORD_MAX_LENGTH, burnPasswordCheck, verifyPassword } from './password.js';
 import { SessionService } from './session.service.js';
 
@@ -44,6 +46,7 @@ export class AuthService {
   constructor(
     @Inject(DatabaseService) private readonly database: DatabaseService,
     @Inject(SessionService) private readonly sessions: SessionService,
+    @Inject(DirectoryService) private readonly directory: DirectoryService,
   ) {}
 
   async login(body: unknown): Promise<LoginResponse> {
@@ -62,15 +65,34 @@ export class AuthService {
       );
     }
 
-    const found = await this.database.query<{ id: string; password_hash: string | null }>(
-      `SELECT id, password_hash FROM staff_users
-        WHERE username = $1 AND identity_provider = 'LOCAL' AND is_active`,
+    const found = await this.database.query<{
+      id: string;
+      password_hash: string | null;
+      identity_provider: 'LOCAL' | 'DIRECTORY';
+      external_subject: string | null;
+    }>(
+      `SELECT id, password_hash, identity_provider, external_subject FROM staff_users
+        WHERE username = $1 AND is_active`,
       [username],
     );
     const user = found.rows[0];
     let verified = false;
-    if (user?.password_hash) {
+    if (user?.identity_provider === 'LOCAL' && user.password_hash) {
       verified = await verifyPassword(password, user.password_hash);
+    } else if (
+      user?.identity_provider === 'DIRECTORY' &&
+      user.external_subject &&
+      this.directory.enabled
+    ) {
+      try {
+        verified = await this.directory.authenticate(user.external_subject, password);
+      } catch (error) {
+        if (!(error instanceof DirectoryUnavailableError)) throw error;
+        // Not a wrong password, so it is not counted against the person.
+        throw new ServiceUnavailableException(
+          'Sign-in with the hospital directory is not available right now. Try again in a moment.',
+        );
+      }
     } else {
       await burnPasswordCheck(password);
     }
