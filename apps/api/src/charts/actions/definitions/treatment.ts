@@ -205,3 +205,41 @@ export const POST_WEEKLY_UPDATE: ActionDefinition = {
   summary: (v, { chart }) =>
     `Saturday update posted. ${v.sessionsTotal}${chart.plannedSessions === null ? '' : ` of ${chart.plannedSessions}`} sessions given.${v.gap === 'Yes' ? ' There was a gap in treatment this week.' : ''}${note(v, 'weeklyNote')}`,
 };
+
+/**
+ * Junior resident and radiographer, once each, after treatment is complete. The second one ends tracking.
+ * Like a Saturday update it is kept as it was posted and cannot be edited.
+ */
+export const POST_FINAL_UPDATE: ActionDefinition = {
+  label: 'Post final update',
+  assertReady: async ({ tx, chart, role }) => {
+    const found = await tx.query(
+      `SELECT 1 FROM treatment_status_updates WHERE chart_id = $1 AND kind = 'FINAL' AND author_role = $2`,
+      [chart.id, role],
+    );
+    if (found.rows.length > 0) {
+      throw new DomainError(
+        409,
+        'ALREADY_POSTED',
+        'This role has already posted its final update. It cannot be edited.',
+      );
+    }
+  },
+  fields: () => [
+    area('finalNote', 'Final note', {
+      placeholder: 'Operational notes only, no clinical findings.',
+      help: 'Optional. It cannot be edited after posting.',
+    }),
+  ],
+  derive: async (_values, { role, today }) => ({
+    [role === 'RADIOGRAPHER' ? 'finalRadiographerOn' : 'finalJuniorOn']: today,
+  }),
+  afterApply: async (values, { tx, chart, actor, role }) => {
+    await tx.query(
+      `INSERT INTO treatment_status_updates(chart_id, kind, author_id, author_role, note)
+       VALUES ($1, 'FINAL', $2, $3, $4)`,
+      [chart.id, actor.id, role, values.finalNote ?? null],
+    );
+  },
+  summary: (v) => `Final update posted.${note(v, 'finalNote')}`,
+};

@@ -342,10 +342,19 @@ test.describe('WEB-054 treatment: tell the patient, start, Saturday updates, fin
     await page.getByLabel('Note').fill('Patient moved to another hospital.');
     await page.getByRole('button', { name: 'Record treatment complete' }).click();
 
+    // Treatment is over but tracking continues until both final updates are in.
+    await expect(page.getByText(/Waiting for the junior resident and the radiographer/)).toBeVisible();
+    await expect(page.getByText('Treatment finished', { exact: true }).first()).toBeVisible();
+    await page.getByRole('button', { name: 'Post final update' }).click();
+    await expect(page.getByText(/Waiting for the junior resident and the radiographer/)).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Post final update' })).toHaveCount(0);
+
+    await logIn(page, 'real.radiographer');
+    await open(page);
+    await page.getByRole('button', { name: 'Post final update' }).click();
     await expect(page.getByText('Nothing more to do: tracking ends here.')).toBeVisible();
     await expect(page.getByText(/closed/).first()).toBeVisible();
     await expect(page.getByRole('form')).toHaveCount(0);
-    await expect(page.getByText('Treatment finished', { exact: true }).first()).toBeVisible();
   });
 });
 
@@ -379,7 +388,7 @@ test.describe('WEB-055 the queue follows the workflow', () => {
 
     await page.goto('/overview');
     await expect(page.getByRole('row', { name: new RegExp(rtNumber) })).toContainText('RT chart issued');
-    await expect(page.getByRole('progressbar', { name: 'Stage 1 of 14' }).first()).toBeVisible();
+    await expect(page.getByRole('progressbar', { name: 'Stage 1 of 15' }).first()).toBeVisible();
   });
 });
 

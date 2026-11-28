@@ -60,7 +60,7 @@ export default function ChartDetailView({ chart }: { chart: ChartDetail }) {
         <h2 id="next" className="text-lg font-medium">
           What happens next
         </h2>
-        {chart.waitingFor && chart.ownerRole ? (
+        {chart.status === 'OPEN' && chart.waitingFor ? (
           <p>
             Waiting for {chart.waitingFor}
             {chart.ownerRole && ` (${ROLE_LABELS[chart.ownerRole]})`}.

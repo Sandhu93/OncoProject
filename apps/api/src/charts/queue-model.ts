@@ -4,6 +4,9 @@ import type { ChartData } from './actions/types.js';
 /** The one stage where charts are being treated: it never counts as stalled and asks for Saturday updates. */
 export const TREATMENT_STAGE = 'TREATMENT_IN_PROGRESS';
 
+/** Treatment is done; the junior resident and the radiographer still owe their final updates. */
+export const FINISHED_STAGE = 'TREATMENT_COMPLETED';
+
 const ROLE_NAMES: Record<string, string> = {
   CONSULTANT: 'Consultant',
   SENIOR_RESIDENT: 'Senior resident',
@@ -70,6 +73,15 @@ export function dateLine(
         done === null ? '' : ` · ${done}${planned === null ? '' : ` of ${planned}`} sessions`;
       return `Started ${formatDate(data.startOn)}${sessions}`;
     }
+    case FINISHED_STAGE: {
+      if (!data.completeOn) return null;
+      const given = data.sessionsFinal;
+      const sessions =
+        given === undefined
+          ? ''
+          : ` · ${given}${planned === null ? '' : ` of ${planned}`} sessions`;
+      return `Finished ${formatDate(data.completeOn)}${sessions}`;
+    }
     default:
       return null;
   }
@@ -97,6 +109,7 @@ export function nextStepText(forward: readonly string[], canSendBack: boolean, w
 /** Who the chart is waiting for. */
 export function waitingOn(input: {
   stage: string;
+  finalMissing?: readonly string[];
   ownerRole: string | null;
   assignee: string | null;
   weeklyMissing: readonly string[];
@@ -105,6 +118,12 @@ export function waitingOn(input: {
   if (input.stage === TREATMENT_STAGE) {
     if (input.weeklyMissing.length === 0) return 'Nobody this week: Saturday updates are in';
     return `${input.weeklyMissing.map((role, index) => (index === 0 ? roleName(role) : lower(role))).join(' and ')} (Saturday update)`;
+  }
+  if (input.stage === FINISHED_STAGE) {
+    const missing = input.finalMissing ?? [];
+    return missing.length === 0
+      ? 'Nobody: final updates are in'
+      : `${missing.map((role, index) => (index === 0 ? roleName(role) : lower(role))).join(' and ')} (final update)`;
   }
   return input.ownerRole ? roleName(input.ownerRole) : 'No one (finished)';
 }

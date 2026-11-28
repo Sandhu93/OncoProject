@@ -71,5 +71,14 @@ export const STAGE_INFO: Readonly<Record<string, StageInfo>> = {
     waiting: 'weekly updates, then completion',
     owner: 'JUNIOR_RESIDENT',
   },
-  TREATMENT_COMPLETED: { phase: 'Treatment', waiting: 'nothing, tracking ends here', owner: null },
+  TREATMENT_COMPLETED: {
+    phase: 'Treatment',
+    waiting: 'the junior resident and the radiographer to post their final updates',
+    owner: 'JUNIOR_RESIDENT',
+  },
+  TRACKING_ENDED: { phase: 'Treatment', waiting: 'nothing, tracking has ended', owner: null },
 };
+
+/** After treatment is complete, each of these roles posts one final update; tracking ends when both have. */
+export const FINAL_UPDATE_STAGE = 'TREATMENT_COMPLETED';
+export const FINAL_UPDATE_ROLES = ['JUNIOR_RESIDENT', 'RADIOGRAPHER'] as const;

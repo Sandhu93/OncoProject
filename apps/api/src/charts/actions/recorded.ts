@@ -63,6 +63,8 @@ const ROWS: readonly (readonly [
         ? `${formatDate(d.completeOn)}${d.sessionsFinal ? `, ${d.sessionsFinal} sessions given` : ''}`
         : null,
   ],
+  ['Final update, junior resident', (d) => day(d, 'finalJuniorOn')],
+  ['Final update, radiographer', (d) => day(d, 'finalRadiographerOn')],
 ];
 
 export function recordedFacts(data: ChartData, planned: number | null = null): RecordedFact[] {

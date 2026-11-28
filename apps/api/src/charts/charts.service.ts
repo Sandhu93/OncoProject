@@ -12,7 +12,7 @@ import { DatabaseService, type Queryable } from '../database/database.service.js
 import { NotificationService } from '../notifications/notification.service.js';
 import { CommandService } from '../transactions/command.service.js';
 import { DomainError } from '../transactions/domain-error.js';
-import { STAGE_INFO } from './actions/stage-info.js';
+import { FINAL_UPDATE_STAGE, STAGE_INFO } from './actions/stage-info.js';
 import { normaliseRtNumber, parseIssueChart } from './issue-chart.parse.js';
 
 /** Assumed until D-02 (who registers charts) is answered: the consultant issues the chart. */
@@ -65,7 +65,9 @@ function toSummary(row: ChartRow): ChartSummary {
     scanReference: row.scan_reference,
     phase: STAGE_INFO[row.stage_code]?.phase ?? null,
     waitingFor: STAGE_INFO[row.stage_code]?.waiting ?? null,
-    ownerRole: STAGE_INFO[row.stage_code]?.owner ?? null,
+    // After treatment two roles owe a final update, so there is no single owner to name.
+    ownerRole:
+      row.stage_code === FINAL_UPDATE_STAGE ? null : (STAGE_INFO[row.stage_code]?.owner ?? null),
     issuedBy: row.issued_by,
     createdAt: iso(row.created_at),
   };

@@ -13,8 +13,8 @@ describe('ACT-001 every action in the workflow has a step definition', () => {
         `SELECT DISTINCT t.action FROM workflow_transitions t
            JOIN workflow_versions w ON w.id = t.workflow_id WHERE w.status = 'ACTIVE'`,
       );
-      // 16 transitions; the two ways of sending the contouring back share one action code.
-      expect(rows.rows).toHaveLength(15);
+      // 18 transitions; the two ways of sending the contouring back share one action code.
+      expect(rows.rows).toHaveLength(16);
       expect(rows.rows.map((r) => r.action).filter((a) => !CATALOGUE[a])).toEqual([]);
     } finally {
       await s.close();
@@ -362,10 +362,12 @@ describe('ACT-040 treatment: tell the patient, start, Saturday updates, finish',
         .expect(200)
     ).body;
     expect(done.stage.code).toBe('TREATMENT_COMPLETED');
-    expect(done.status).toBe('CLOSED');
-    expect(done.waitingFor).toBe('nothing, tracking ends here');
-    expect(done.ownerRole).toBeNull();
-    expect(done.availableActions).toEqual([]);
+    // Treatment is done but the chart stays open until both final updates are in.
+    expect(done.status).toBe('OPEN');
+    expect(done.waitingFor).toBe(
+      'the junior resident and the radiographer to post their final updates',
+    );
+    expect(names(done.availableActions)).toEqual(['POST_FINAL_UPDATE']);
     expect(done.weekly).toBeNull();
     expect(done.history.at(-1).summary).toMatch(
       /^Treatment finished on .* after 20 of 25 sessions\. Note: Patient transferred to another hospital\.$/,
@@ -382,10 +384,82 @@ describe('ACT-040 treatment: tell the patient, start, Saturday updates, finish',
       { kind: 'COMPLETION', note: 'Patient transferred to another hospital.' },
     ]);
 
-    const closed = await s
+    // No more Saturday updates once treatment is complete.
+    await s
       .act(resident, 'TR-6', 'POST_WEEKLY_UPDATE', done.version, { sessionsTotal: '20', gap: 'No' })
       .expect(409);
-    expect(closed.body.code).toBe('CHART_CLOSED');
+  });
+
+  it('keeps the chart open until the junior resident and the radiographer have both posted a final update', async () => {
+    const chart = await chartInTreatment(s, 'TR-8');
+    const done = (
+      await s
+        .act(resident, 'TR-8', 'COMPLETE_TREATMENT', chart.version, {
+          completeOn: istToday(),
+          sessionsFinal: '25',
+        })
+        .expect(200)
+    ).body;
+    // Neither the senior resident nor the consultant has a final update to post.
+    expect((await s.chart(senior, 'TR-8')).availableActions).toEqual([]);
+    await s.act(s.consultant, 'TR-8', 'POST_FINAL_UPDATE', done.version, {}).expect(403);
+
+    const first = (
+      await s
+        .act(resident, 'TR-8', 'POST_FINAL_UPDATE', done.version, {
+          finalNote: 'Skin reaction mild.',
+        })
+        .expect(200)
+    ).body;
+    expect(first.stage.code).toBe('TREATMENT_COMPLETED');
+    expect(first.status).toBe('OPEN');
+    expect(first.history.at(-1).summary).toBe('Final update posted. Note: Skin reaction mild.');
+    expect(first.recorded).toContainEqual({
+      label: 'Final update, junior resident',
+      value: expect.any(String),
+    });
+    // The resident cannot post a second one; the radiographer still can.
+    expect((await s.chart(resident, 'TR-8')).availableActions).toEqual([]);
+    const again = await s.act(resident, 'TR-8', 'POST_FINAL_UPDATE', first.version, {}).expect(409);
+    expect(['ALREADY_POSTED', 'ACTION_NOT_AVAILABLE']).toContain(again.body.code);
+    expect(names((await s.chart(radiographer, 'TR-8')).availableActions)).toEqual([
+      'POST_FINAL_UPDATE',
+    ]);
+
+    const last = (
+      await s.act(radiographer, 'TR-8', 'POST_FINAL_UPDATE', first.version, {}).expect(200)
+    ).body;
+    expect(last.stage.code).toBe('TRACKING_ENDED');
+    expect(last.status).toBe('CLOSED');
+    expect(last.availableActions).toEqual([]);
+    const stored = await s.test.db.query(
+      "SELECT author_role FROM treatment_status_updates WHERE chart_id = $1 AND kind = 'FINAL' ORDER BY author_role",
+      [last.id],
+    );
+    expect(stored.rows).toEqual([
+      { author_role: 'JUNIOR_RESIDENT' },
+      { author_role: 'RADIOGRAPHER' },
+    ]);
+  });
+
+  it('lets the radiographer post first; the resident then ends tracking', async () => {
+    const chart = await chartInTreatment(s, 'TR-9');
+    const done = (
+      await s
+        .act(resident, 'TR-9', 'COMPLETE_TREATMENT', chart.version, {
+          completeOn: istToday(),
+          sessionsFinal: '25',
+        })
+        .expect(200)
+    ).body;
+    const first = (
+      await s.act(radiographer, 'TR-9', 'POST_FINAL_UPDATE', done.version, {}).expect(200)
+    ).body;
+    expect(first.status).toBe('OPEN');
+    const last = (await s.act(resident, 'TR-9', 'POST_FINAL_UPDATE', first.version, {}).expect(200))
+      .body;
+    expect(last.stage.code).toBe('TRACKING_ENDED');
+    expect(last.status).toBe('CLOSED');
   });
 
   it('a full course needs no note', async () => {
@@ -402,6 +476,7 @@ describe('ACT-040 treatment: tell the patient, start, Saturday updates, finish',
     expect(done.history.at(-1).summary).toBe(
       `Treatment finished on ${done.history.at(-1).summary.match(/on (.*) after/)[1]} after 25 of 25 sessions.`,
     );
-    expect(done.status).toBe('CLOSED');
+    expect(done.status).toBe('OPEN');
+    expect(done.stage.code).toBe('TREATMENT_COMPLETED');
   });
 });

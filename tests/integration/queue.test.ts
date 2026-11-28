@@ -42,7 +42,7 @@ describe('QUE-010 the queue of open charts, marked for the person asking', () =>
       stage: { code: 'RT_CHART_ISSUED' },
       phase: 'Getting ready',
       stageNumber: 1,
-      stageCount: 14,
+      stageCount: 15,
       daysInStage: 0,
       stalled: false,
       dateLine: 'Dates not recorded yet',

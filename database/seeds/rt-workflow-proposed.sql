@@ -1,4 +1,5 @@
--- The PROPOSED RT workflow: 14 stages and 16 transitions, exactly as docs/product/rt-workflow-proposal.md and
+-- The PROPOSED RT workflow: 15 stages and 18 transitions (the last two let the junior resident and the radiographer
+-- each post a final update after treatment; the chart moves to TRACKING_ENDED when both are in), exactly as docs/product/rt-workflow-proposal.md and
 -- the prototype describe them. It is a DRAFT. It becomes the department's workflow only when the consultant
 -- confirms it (D-01); rows the proposal marks "Assumed" are the questions on the confirmation sheet.
 -- Chart creation (ISSUE_RT_CHART, by a consultant) is the chart-issuing command, not a transition.
@@ -23,7 +24,8 @@ VALUES
   ('00000000-0000-4000-8000-000000000002', 'PLAN_ON_LINAC', 'Plan on LINAC', 10, false, false, false, '{}'),
   ('00000000-0000-4000-8000-000000000002', 'PATIENT_INFORMED', 'Patient informed', 11, false, false, false, '{}'),
   ('00000000-0000-4000-8000-000000000002', 'TREATMENT_IN_PROGRESS', 'Treatment in progress', 12, false, false, true, '{JUNIOR_RESIDENT,RADIOGRAPHER}'),
-  ('00000000-0000-4000-8000-000000000002', 'TREATMENT_COMPLETED', 'Treatment completed', 13, false, true, false, '{}')
+  ('00000000-0000-4000-8000-000000000002', 'TREATMENT_COMPLETED', 'Treatment completed', 13, false, false, false, '{}'),
+  ('00000000-0000-4000-8000-000000000002', 'TRACKING_ENDED', 'Tracking ended', 14, false, true, false, '{}')
 ON CONFLICT DO NOTHING;
 
 INSERT INTO workflow_transitions(workflow_id, from_stage, action, to_stage, role_code,
@@ -44,5 +46,7 @@ VALUES
   ('00000000-0000-4000-8000-000000000002', 'PLAN_APPROVED', 'SEND_PLAN_TO_LINAC', 'PLAN_ON_LINAC', 'PHYSICIST', false, false, '{}'),
   ('00000000-0000-4000-8000-000000000002', 'PLAN_ON_LINAC', 'INFORM_PATIENT', 'PATIENT_INFORMED', 'RADIOGRAPHER', false, false, '{CONTOURING_APPROVED,PLAN_APPROVED,LINAC_SLOT_RESERVED}'),
   ('00000000-0000-4000-8000-000000000002', 'PATIENT_INFORMED', 'START_TREATMENT', 'TREATMENT_IN_PROGRESS', 'JUNIOR_RESIDENT', false, false, '{}'),
-  ('00000000-0000-4000-8000-000000000002', 'TREATMENT_IN_PROGRESS', 'COMPLETE_TREATMENT', 'TREATMENT_COMPLETED', 'JUNIOR_RESIDENT', false, false, '{}')
+  ('00000000-0000-4000-8000-000000000002', 'TREATMENT_IN_PROGRESS', 'COMPLETE_TREATMENT', 'TREATMENT_COMPLETED', 'JUNIOR_RESIDENT', false, false, '{}'),
+  ('00000000-0000-4000-8000-000000000002', 'TREATMENT_COMPLETED', 'POST_FINAL_UPDATE', 'TRACKING_ENDED', 'JUNIOR_RESIDENT', false, false, '{}'),
+  ('00000000-0000-4000-8000-000000000002', 'TREATMENT_COMPLETED', 'POST_FINAL_UPDATE', 'TRACKING_ENDED', 'RADIOGRAPHER', false, false, '{}')
 ON CONFLICT DO NOTHING;

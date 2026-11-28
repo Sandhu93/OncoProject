@@ -740,7 +740,7 @@ export function registerSchemaTests(name, createDatabase) {
         }
       });
     });
-    it('DB-030 the proposed RT workflow matches the prototype: 14 stages, 16 transitions, owners and checks', async () => {
+    it('DB-030 the proposed RT workflow matches the proposal: 15 stages, 18 transitions, owners and checks', async () => {
       await fixture(async (client, { staff }) => {
         const seed = await readFile(
           new URL('../../database/seeds/rt-workflow-proposed.sql', import.meta.url),
@@ -772,6 +772,7 @@ export function registerSchemaTests(name, createDatabase) {
             'PATIENT_INFORMED',
             'TREATMENT_IN_PROGRESS',
             'TREATMENT_COMPLETED',
+            'TRACKING_ENDED',
           ],
         );
         assert.deepEqual(
@@ -780,7 +781,7 @@ export function registerSchemaTests(name, createDatabase) {
         );
         assert.deepEqual(
           stages.filter((row) => row.is_terminal).map((row) => row.code),
-          ['TREATMENT_COMPLETED'],
+          ['TRACKING_ENDED'],
         );
         assert.deepEqual(
           stages
@@ -795,7 +796,7 @@ export function registerSchemaTests(name, createDatabase) {
             [id],
           )
         ).rows;
-        assert.equal(moves.length, 16);
+        assert.equal(moves.length, 18);
         const owner = (from) =>
           moves.filter((move) => move.from_stage === from).map((move) => move.role_code);
         assert.deepEqual(owner('RT_CHART_ISSUED'), ['RADIOGRAPHER']);
@@ -809,7 +810,8 @@ export function registerSchemaTests(name, createDatabase) {
         assert.deepEqual(owner('PLAN_APPROVED'), ['PHYSICIST']);
         assert.deepEqual(owner('PLAN_ON_LINAC'), ['RADIOGRAPHER']);
         assert.deepEqual(owner('PATIENT_INFORMED'), ['JUNIOR_RESIDENT']);
-        assert.deepEqual(owner('TREATMENT_COMPLETED'), []);
+        assert.deepEqual(owner('TREATMENT_COMPLETED').sort(), ['JUNIOR_RESIDENT', 'RADIOGRAPHER']);
+        assert.deepEqual(owner('TRACKING_ENDED'), []);
         assert.deepEqual(
           moves
             .filter((move) => move.requires_reason)

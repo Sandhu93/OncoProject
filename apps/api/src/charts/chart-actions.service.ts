@@ -50,6 +50,7 @@ interface TransitionRow {
 }
 
 const WEEKLY = 'POST_WEEKLY_UPDATE';
+const FINAL = 'POST_FINAL_UPDATE';
 
 interface WeeklyStage {
   requires_weekly_update: boolean;
@@ -188,7 +189,12 @@ export class ChartActionsService {
         await definition.afterApply?.(values, context);
 
         const columns = definition.columns?.(values) ?? {};
-        const keeps = transition.keeps_stage === true;
+        // The first of the two final updates leaves the chart where it is; the second ends tracking.
+        const keeps =
+          action === FINAL
+            ? !(await this.otherFinalPosted(tx, chart.id, transition.role_code))
+            : transition.keeps_stage === true;
+        const toStage = keeps ? chart.current_stage : transition.to_stage;
         const params: unknown[] = [chart.id, expectedVersion];
         const bind = (value: unknown) => `$${params.push(value)}`;
         const sets = [
@@ -197,9 +203,9 @@ export class ChartActionsService {
           `data = ${bind(JSON.stringify(data))}::jsonb`,
         ];
         if (!keeps) {
-          sets.push(`current_stage = ${bind(transition.to_stage)}`, 'current_stage_since = now()');
+          sets.push(`current_stage = ${bind(toStage)}`, 'current_stage_since = now()');
           // Reaching a final stage ends tracking: the chart is closed and takes no more steps.
-          const target = await this.stageOf(tx, chart.workflow_id, transition.to_stage);
+          const target = await this.stageOf(tx, chart.workflow_id, toStage);
           if (target?.is_terminal) sets.push("status = 'CLOSED'");
         }
         for (const [column, value] of Object.entries(columns)) {
@@ -224,7 +230,7 @@ export class ChartActionsService {
             chart.id,
             chart.workflow_id,
             chart.current_stage,
-            transition.to_stage,
+            toStage,
             action,
             actor.id,
             [...actor.roles],
@@ -243,7 +249,7 @@ export class ChartActionsService {
             [...actor.roles],
             chart.id,
             JSON.stringify({ stage: chart.current_stage, version: expectedVersion }),
-            JSON.stringify({ stage: transition.to_stage, version, action }),
+            JSON.stringify({ stage: toStage, version, action }),
             requestId,
             keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
           ],
@@ -257,7 +263,7 @@ export class ChartActionsService {
               chartId: chart.id,
               rtNumber: chart.display_number,
               fromStage: chart.current_stage,
-              toStage: transition.to_stage,
+              toStage,
               action,
             }),
             keeps ? 'CHART_UPDATE_POSTED' : 'CHART_STAGE_CHANGED',
@@ -269,7 +275,7 @@ export class ChartActionsService {
             chart,
             eventId: event.rows[0]!.id,
             action,
-            toStage: transition.to_stage,
+            toStage,
             reason: transition.requires_reason ? (reason ?? null) : null,
             data,
           });
@@ -318,6 +324,15 @@ export class ChartActionsService {
         sentBackReason: input.reason,
       });
     }
+  }
+
+  /** True when the other role has already posted its final update. */
+  private async otherFinalPosted(db: Queryable, chartId: string, role: string): Promise<boolean> {
+    const found = await db.query(
+      `SELECT 1 FROM treatment_status_updates WHERE chart_id = $1 AND kind = 'FINAL' AND author_role <> $2`,
+      [chartId, role],
+    );
+    return found.rows.length > 0;
   }
 
   private async loadState(db: Queryable, rtNumber: string, lock: boolean): Promise<ChartState> {
@@ -486,6 +501,7 @@ export class ChartActionsService {
       }
       const context = await this.context(db, actor, chart, transition.role_code);
       if (transition.keeps_stage && (await postedThisWeek(context))) continue;
+      if (transition.action === FINAL && (await postedFinal(context))) continue;
       const fields = await this.fieldsFor(db, definition, context, transition.requires_reason);
       available.push({
         action: transition.action,
@@ -505,6 +521,15 @@ async function postedThisWeek({ tx, chart, role, weekEnding }: ActionContext): P
     `SELECT 1 FROM treatment_status_updates
       WHERE chart_id = $1 AND kind = 'WEEKLY' AND week_ending = $2 AND author_role = $3`,
     [chart.id, weekEnding, role],
+  );
+  return found.rows.length > 0;
+}
+
+/** True when this person's role has already posted its final update. */
+async function postedFinal({ tx, chart, role }: ActionContext): Promise<boolean> {
+  const found = await tx.query(
+    `SELECT 1 FROM treatment_status_updates WHERE chart_id = $1 AND kind = 'FINAL' AND author_role = $2`,
+    [chart.id, role],
   );
   return found.rows.length > 0;
 }

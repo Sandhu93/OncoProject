@@ -129,9 +129,22 @@ describe('NOT-010 in-app notifications', () => {
         sessionsFinal: '25',
       })
       .expect(200);
+    // Treatment is complete: the junior resident and the radiographer are asked for final updates.
+    const asked = mentioning(await inbox(radiographer), 'N-3').filter(
+      (n) => n.kind === 'YOUR_TURN',
+    );
+    expect(asked.length).toBeGreaterThan(0);
+    expect(
+      mentioning(await inbox(s.consultant), 'N-3').filter((n) => n.kind === 'FINISHED'),
+    ).toHaveLength(0);
+
+    const after = await s.chart(junior, 'N-3');
+    const mid = (await s.act(junior, 'N-3', 'POST_FINAL_UPDATE', after.version, {}).expect(200))
+      .body;
+    await s.act(radiographer, 'N-3', 'POST_FINAL_UPDATE', mid.version, {}).expect(200);
     const done = mentioning(await inbox(s.consultant), 'N-3').filter((n) => n.kind === 'FINISHED');
     expect(done).toHaveLength(1);
-    expect(done[0]!.message).toBe('N-3: treatment is finished and tracking has ended.');
+    expect(done[0]!.message).toBe('N-3: both final updates are in and tracking has ended.');
   });
 
   describe('reminders', () => {

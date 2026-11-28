@@ -20,6 +20,7 @@ import {
   COMPLETE_TREATMENT,
   INFORM_PATIENT,
   POST_WEEKLY_UPDATE,
+  POST_FINAL_UPDATE,
   START_TREATMENT,
 } from './definitions/treatment.js';
 import type { ActionDefinition } from './types.js';
@@ -46,4 +47,5 @@ export const CATALOGUE: Readonly<Record<string, ActionDefinition>> = {
   START_TREATMENT,
   COMPLETE_TREATMENT,
   POST_WEEKLY_UPDATE,
+  POST_FINAL_UPDATE,
 };

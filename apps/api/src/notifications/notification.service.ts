@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { NotificationItem, NotificationList } from '@oncotrack/contracts';
 import type { Actor } from '../auth/actor.js';
-import { STAGE_INFO } from '../charts/actions/stage-info.js';
+import {
+  FINAL_UPDATE_ROLES,
+  FINAL_UPDATE_STAGE,
+  STAGE_INFO,
+} from '../charts/actions/stage-info.js';
 import { saturdayOnOrBefore } from '../charts/actions/dates.js';
 import { readConfig } from '../config.js';
 import { DatabaseService, type Queryable } from '../database/database.service.js';
@@ -90,6 +94,7 @@ export class NotificationService {
       );
       if (assigned.rows.length > 0) return assigned.rows.map((row) => row.staff_id);
     }
+    if (stage === FINAL_UPDATE_STAGE) return this.staffWithRoles(db, FINAL_UPDATE_ROLES);
     const owner = STAGE_INFO[stage]?.owner;
     return owner ? this.staffWithRoles(db, [owner]) : [];
   }
@@ -165,7 +170,7 @@ export class NotificationService {
         rtNumber: input.rtNumber,
         eventId: input.eventId,
         kind: 'FINISHED',
-        message: `${input.rtNumber}: treatment is finished and tracking has ended.`,
+        message: `${input.rtNumber}: both final updates are in and tracking has ended.`,
         recipients: await this.staffWithRoles(db, ['CONSULTANT']),
       },
       [input.actor.id],

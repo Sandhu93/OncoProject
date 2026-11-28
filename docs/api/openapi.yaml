@@ -255,7 +255,7 @@ paths:
   /charts/by-number/{rtNumber}/actions/{action}:
     post:
       operationId: performChartAction
-      summary: Record one step of the workflow, or a Saturday update (POST_WEEKLY_UPDATE)
+      summary: Record one step of the workflow, a Saturday update (POST_WEEKLY_UPDATE) or a final update after treatment (POST_FINAL_UPDATE)
       description: |
         The chart's own answer lists the steps the signed-in person can take now (`availableActions`), each with
         the fields to fill in, their defaults and limits. Send the values in `values`, with the chart `version`

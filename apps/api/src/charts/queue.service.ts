@@ -5,10 +5,11 @@ import { readConfig } from '../config.js';
 import { DatabaseService } from '../database/database.service.js';
 import { CATALOGUE } from './actions/catalogue.js';
 import { saturdayOnOrBefore } from './actions/dates.js';
-import { STAGE_INFO } from './actions/stage-info.js';
+import { FINAL_UPDATE_ROLES, STAGE_INFO } from './actions/stage-info.js';
 import type { ChartData } from './actions/types.js';
 import {
   dateLine,
+  FINISHED_STAGE,
   nextStepText,
   queueOrder,
   treatmentDay,
@@ -82,6 +83,15 @@ export class QueueService {
       `SELECT workflow_id, code, (row_number() OVER (PARTITION BY workflow_id ORDER BY display_order))::int AS position
          FROM workflow_stages`,
     );
+    const finals = await this.database.query<{ chart_id: string; author_role: string }>(
+      `SELECT chart_id, author_role FROM treatment_status_updates WHERE kind = 'FINAL'`,
+    );
+    const finalBy = new Map<string, Set<string>>();
+    for (const row of finals.rows) {
+      const set = finalBy.get(row.chart_id) ?? new Set<string>();
+      set.add(row.author_role);
+      finalBy.set(row.chart_id, set);
+    }
     const posted = await this.database.query<{ chart_id: string; author_role: string }>(
       `SELECT chart_id, author_role FROM treatment_status_updates WHERE kind = 'WEEKLY' AND week_ending = $1`,
       [weekEnding],
@@ -110,11 +120,14 @@ export class QueueService {
       const weeklyRoles = chart.requires_weekly_update ? chart.weekly_update_roles : [];
       const weeklyMissing = weeklyRoles.filter((role) => !done.has(role)) as ClinicalRole[];
 
+      const finalDone = finalBy.get(chart.id) ?? new Set<string>();
+      const finalMissing = FINAL_UPDATE_ROLES.filter((role) => !finalDone.has(role));
       const mine = transitions.rows.filter(
         (t) =>
           t.workflow_id === chart.workflow_id &&
           t.from_stage === chart.stage &&
           actor.roles.includes(t.role_code as never) &&
+          !(t.action === 'POST_FINAL_UPDATE' && finalDone.has(t.role_code)) &&
           (!t.requires_assignment || chart.assignee_id === actor.id),
       );
       // In treatment the queue asks only for the Saturday update; finishing treatment is found on the chart.
@@ -144,6 +157,7 @@ export class QueueService {
           ownerRole: info?.owner ?? null,
           assignee: chart.assignee_name,
           weeklyMissing,
+          finalMissing,
         }),
         assignedTo: chart.stage === 'CONTOURING' ? chart.assignee_name : null,
         assignedToYou: chart.stage === 'CONTOURING' && chart.assignee_id === actor.id,
@@ -177,7 +191,9 @@ export class QueueService {
     );
 
     const open = items.length;
-    const inTreatmentCount = items.filter((item) => item.stage.code === TREATMENT_STAGE).length;
+    const inTreatmentCount = items.filter((item) =>
+      [TREATMENT_STAGE, FINISHED_STAGE].includes(item.stage.code),
+    ).length;
     return {
       stallDays,
       weekEnding,
